@@ -29,13 +29,21 @@ function parseContributionPage(wikitext) {
         }
         
         if (inTable) {
+            // 预处理：移除行内注释，防止注释中的模板被误统计（如示例行）
+            const cleanLine = line.replace(/<!--[\s\S]*?-->/g, '');
+
+            // 过滤：排除导入综述行（通常包含 Special:日志 和 type=import）
+            if (cleanLine.includes('type=import') && (cleanLine.includes('Special:日志') || cleanLine.includes('Special:Log'))) {
+                continue;
+            }
+
             // 使用正则查找状态模板
-            // 模板格式: {{2026FSEditasonStatus|状态|分数(可选)}}
-            // 例如: {{2026FSEditasonStatus|pass|5}} 或 {{2026FSEditasonStatus|pass|11.3}}
+            // 模板格式: {{2026SFEditasonStatus|状态|分数(可选)}}
+            // 例如: {{2026SFEditasonStatus|pass|5}} 或 {{2026SFEditasonStatus|pass|11.3}}
             // 修改正则：允许匹配小数 ([\d.]+)
             const statusRegex = /\{\{2026SFEditasonStatus\|(.*?)(\|([\d.]+))?\}\}/g;
             let match;
-            while ((match = statusRegex.exec(line)) !== null) {
+            while ((match = statusRegex.exec(cleanLine)) !== null) {
                 // 每发现一个状态模板，视为一行有效条目
                 entryCount++;
                 
