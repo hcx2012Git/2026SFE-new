@@ -194,25 +194,34 @@ async function updateLeaderboard(bot, participants) {
         
         const veterans = participants.filter(p => p.isVeteran).sort(sortFn);
         const newStars = participants.filter(p => !p.isVeteran).sort(sortFn);
+        const allParticipants = [...participants].sort(sortFn);
 
         // 生成表格行的辅助函数
-        const generateRows = (list) => {
+        const generateRows = (list, markNewStar = false) => {
             if (list.length === 0) return '|- \n| colspan="5" style="text-align: center;" | 暂无数据\n';
             return list.map((p, index) => {
+                let userDisplay = `[[User:${p.username}|${p.username}]]`;
+                if (markNewStar && !p.isVeteran) {
+                    // 使用显眼的样式标记新星编者
+                    userDisplay = `🆕 ${userDisplay}`;
+                }
+
                 // 生成一行：| 排名 || 贡献者 || 已提交条数 || 目前得分 || 贡献详情页
                 return `|-
-| ${index + 1} || [[User:${p.username}|${p.username}]] || ${p.entryCount} || ${p.totalScore} || [[${p.pageTitle}|查看页面]]`;
+| ${index + 1} || ${userDisplay} || ${p.entryCount} || ${p.totalScore} || [[${p.pageTitle}|查看页面]]`;
             }).join('\n');
         };
 
         const veteranRows = generateRows(veterans);
         const newStarRows = generateRows(newStars);
+        const allRows = generateRows(allParticipants, true);
 
         // 更新时间戳
         content = updateTimestamp(content);
 
         // 替换页面中的表格内容
         // 注意：这种正则/字符串替换策略依赖于页面结构保持稳定（{{FakeH3|...}} 标题存在）
+        content = replaceTableContent(content, '编者总榜', allRows);
         content = replaceTableContent(content, '熟练编者排行榜', veteranRows);
         content = replaceTableContent(content, '新星编者排行榜', newStarRows);
 
