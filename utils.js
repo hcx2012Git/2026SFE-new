@@ -11,8 +11,12 @@ function parseContributionPage(wikitext) {
     let entryCount = 0;
     let totalScore = 0;
 
+    // 预处理：移除所有注释（包括多行注释），防止注释中的模板被误统计
+    // 使用 [\s\S] 匹配包括换行符在内的所有字符，处理跨行注释
+    const cleanedWikitext = wikitext.replace(/<!--[\s\S]*?-->/g, '');
+
     // 按行分割文本，逐行处理
-    const lines = wikitext.split('\n');
+    const lines = cleanedWikitext.split('\n');
     let inTable = false;
     
     for (const line of lines) {
@@ -29,11 +33,8 @@ function parseContributionPage(wikitext) {
         }
         
         if (inTable) {
-            // 预处理：移除行内注释，防止注释中的模板被误统计（如示例行）
-            const cleanLine = line.replace(/<!--[\s\S]*?-->/g, '');
-
             // 过滤：排除导入综述行（通常包含 Special:日志 和 type=import）
-            if (cleanLine.includes('type=import') && (cleanLine.includes('Special:日志') || cleanLine.includes('Special:Log'))) {
+            if (line.includes('type=import') && (line.includes('Special:日志') || line.includes('Special:Log'))) {
                 continue;
             }
 
@@ -43,7 +44,7 @@ function parseContributionPage(wikitext) {
             // 修改正则：允许匹配小数 ([\d.]+)
             const statusRegex = /\{\{2026SFEditasonStatus\|(.*?)(\|([\d.]+))?\}\}/g;
             let match;
-            while ((match = statusRegex.exec(cleanLine)) !== null) {
+            while ((match = statusRegex.exec(line)) !== null) {
                 // 每发现一个状态模板，视为一行有效条目
                 entryCount++;
                 
