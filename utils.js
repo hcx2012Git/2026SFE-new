@@ -83,12 +83,12 @@ function updateUserPageContent(wikitext, count, score) {
  */
 
 /**
- * Format score to 2 decimal places
+ * Format score to 4 decimal places
  * @param {number} score - The score to format
- * @returns {number} Score rounded to 2 decimal places
+ * @returns {number} Score rounded to 4 decimal places
  */
 function formatScore(score) {
-    return Math.round(score * 100) / 100;
+    return Math.round(score * 10000) / 10000;
 }
 
 module.exports = {
