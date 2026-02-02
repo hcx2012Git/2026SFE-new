@@ -103,9 +103,14 @@ async function findPendingReviews(bot) {
                     page: page.title,
                     user: username,
                     originalLine: item.originalLine,
+                    entryName: item.entryName, // 添加条目名称
                     status: item.status,
                     score: item.score,
-                    position: item.position
+                    absolutePosition: item.absolutePosition,
+                    relativePosition: item.relativePosition,
+                    lineNumber: item.lineNumber,
+                    templateIndex: item.templateIndex,
+                    originalTemplate: item.originalTemplate
                 });
             }
         } catch (err) {
@@ -137,7 +142,7 @@ async function updatePagesFromJson(bot) {
             bot, 
             pageData.title, 
             pageData.items, 
-            pageData.summary || '快速更新审核状态 (2026春节编辑松审核小工具)'
+            pageData.summary || 'bot: 批量更新审核状态 (2026春节编辑松)'
         );
     }
     
@@ -399,7 +404,7 @@ async function updateLeaderboard(bot, participants) {
         content = replaceTableContent(content, '新星编者排行榜', newStarRows);
 
         // 写入更新后的排行榜
-        await bot.save(leaderboardTitle, content, '更新排行榜');
+        await bot.save(leaderboardTitle, content, 'bot: 更新排行榜数据 (2026春节编辑松)');
         console.log(pc.green('[SUCCESS] 总排行榜已更新。'));
 
     } catch (err) {
