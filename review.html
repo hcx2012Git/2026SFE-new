@@ -215,6 +215,172 @@
             text-align: center;
             font-weight: bold;
         }
+        
+        /* 计算器弹窗样式 */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.4);
+        }
+
+        .modal-content {
+            background-color: #fefefe;
+            margin: 5% auto;
+            padding: 20px;
+            border: 1px solid #888;
+            border-radius: 8px;
+            width: 80%;
+            max-width: 700px;
+            max-height: 90vh;
+            overflow-y: auto;
+            position: relative;
+        }
+
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            line-height: 1;
+            cursor: pointer;
+            position: absolute;
+            right: 15px;
+            top: 10px;
+        }
+
+        .close:hover,
+        .close:focus {
+            color: black;
+            text-decoration: none;
+        }
+
+        .calculator-container {
+            margin-top: 20px;
+        }
+
+        .input-group {
+            margin-bottom: 15px;
+        }
+
+        .input-group h3 {
+            margin: 10px 0;
+        }
+
+        .input-group select,
+        .input-group input[type="number"] {
+            width: 100%;
+            padding: 8px;
+            margin: 5px 0;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+
+        .switch-group {
+            display: flex;
+            align-items: center;
+            margin: 8px 0;
+        }
+
+        .switch-group input[type="checkbox"] {
+            margin-right: 8px;
+        }
+
+        .checkbox-group {
+            margin-top: 10px;
+        }
+
+        .checkbox-item {
+            display: flex;
+            align-items: flex-start;
+            margin: 5px 0;
+        }
+
+        .checkbox-item input[type="checkbox"] {
+            margin-right: 8px;
+            margin-top: 4px;
+        }
+
+        .checkbox-item label {
+            flex: 1;
+        }
+
+        .indent {
+            margin-left: 20px;
+        }
+
+        .calculator-btn {
+            background-color: #007bff;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 5px;
+        }
+
+        .calculator-btn:hover {
+            background-color: #0056b3;
+        }
+
+        .result-section {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-radius: 4px;
+        }
+
+        .result-display {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            margin: 15px 0;
+        }
+
+        .score-box, .output-box {
+            flex: 1;
+            min-width: 200px;
+        }
+
+        .score-label, .output-label {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .score-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #007bff;
+        }
+
+        .output-value {
+            word-break: break-word;
+            padding: 10px;
+            background-color: white;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+        }
+
+        .apply-score-btn {
+            background-color: #28a745;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-top: 15px;
+        }
+
+        .apply-score-btn:hover {
+            background-color: #218838;
+        }
     </style>
 </head>
 <body>
@@ -279,10 +445,94 @@
         </div>
     </div>
 
+    <!-- 计算器弹窗 -->
+    <div id="calculatorModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>条目评分计算器</h2>
+            <div class="calculator-container">
+                <div class="input-section">
+                    <div class="input-group">
+                        <h3>条目类型</h3>
+                        <select id="entryType">
+                            <option value="小作品">小作品（基础分: 0.5）</option>
+                            <option value="DYK">DYK（基础分: 1）</option>
+                            <option value="GA">GA（基础分: 3）</option>
+                        </select>
+                    </div>
+                    
+                    <div class="input-group">
+                        <h3>条目字数</h3>
+                        <input type="number" id="wordCount" min="0" step="1" placeholder="请输入字数">
+                        <h3>图片个数</h3>
+                        <input type="number" id="imgCount" min="0" step="1" value="0" placeholder="请输入图片个数">
+                    </div>
+                    
+                    <div class="input-group">
+                        <h3>乘数</h3>
+                        
+                        <div class="switch-group">
+                            <input type="checkbox" id="newUser">
+                            <span>新用户（1.2x）</span>
+                        </div>
+                        
+                        <div class="switch-group">
+                            <input type="checkbox" id="translation">
+                            <span>翻译条目（0.8x）</span>
+                        </div>
+                        
+                        <div style="margin-top: 15px;">
+                            <p style="margin-bottom: 10px; font-weight: 500;">特殊分类：</p>
+                            <div class="checkbox-group">
+                                <div class="checkbox-item">
+                                    <input type="checkbox" id="political" value="2">
+                                    <label for="political">关于中国政治概念、近现代史的条目（2x）</label>
+                                </div>
+                                <div class="checkbox-item indent">
+                                    <input type="checkbox" id="political2" value="0.6" disabled>
+                                    <label for="political2">机关单位类（0.6x）</label>
+                                </div>
+                                <div class="checkbox-item">
+                                    <input type="checkbox" id="common" value="2.2">
+                                    <label for="common">在中文白区、英文白区、中国大百科全书、辞海、现代汉语词典、术语在线这6个参考书里，4个及以上存在对应词条，但求闻百科没有的条目（2.2x）</label>
+                                </div>
+                                <div class="checkbox-item">
+                                    <input type="checkbox" id="position" value="3">
+                                    <label for="position">在白区的对应条目有严重立场问题，而该条目内容完全符合中国法律法规和求闻百科有关方针的（3x）</label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <button id="calculateBtn" class="calculator-btn">
+                    计算得分
+                </button>
+                
+                <div class="result-section">
+                    <h3>计算结果</h3>
+                    <div class="result-display">
+                        <div class="score-box">
+                            <div class="score-label">最终得分</div>
+                            <div class="score-value" id="finalScore">0.00</div>
+                        </div>
+                        <div class="output-box">
+                            <div class="output-label">按顺序输出</div>
+                            <div class="output-value" id="sequentialOutput">等待计算...</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <button id="applyScoreBtn" class="apply-score-btn">应用得分到当前条目</button>
+            </div>
+        </div>
+    </div>
+
     <script>
         let templates = [];
         let currentPageTitle = '';
         let originalWikitext = '';
+        let currentTemplateId = -1; // 记录当前操作的模板ID
         
         function parseTemplates() {
             const input = document.getElementById('wikitextInput').value;
@@ -456,6 +706,7 @@
                                    ${(template.newStatus || template.status) !== 'pass' ? 'disabled' : ''}>
                         </div>
                         <button class="update-btn" onclick="updateSingleTemplate(${template.id})">更新此模板</button>
+                        <button class="update-btn" onclick="openCalculator(${template.id})">打开计算器</button>
                     </div>
                 `;
                 container.appendChild(templateElement);
@@ -463,7 +714,188 @@
             
             document.getElementById('resultsSection').classList.remove('hidden');
         }
-        
+
+        // 打开计算器弹窗的函数
+        function openCalculator(templateId) {
+            currentTemplateId = templateId;
+            document.getElementById('calculatorModal').style.display = 'block';
+        }
+
+        // 计算器相关函数
+        document.addEventListener('DOMContentLoaded', function() {
+            // 获取计算器相关元素
+            const modal = document.getElementById('calculatorModal');
+            const closeBtn = document.querySelector('.close');
+            const calculateBtn = document.getElementById('calculateBtn');
+            const applyScoreBtn = document.getElementById('applyScoreBtn');
+
+            // 关闭弹窗事件
+            closeBtn.onclick = function() {
+                modal.style.display = 'none';
+            }
+
+            // 点击弹窗外部关闭
+            window.onclick = function(event) {
+                if (event.target === modal) {
+                    modal.style.display = 'none';
+                }
+            }
+
+            // 计算器变量
+            const entryType = document.getElementById('entryType');
+            const wordCount = document.getElementById('wordCount');
+            const imgCount = document.getElementById('imgCount');
+            const newUser = document.getElementById('newUser');
+            const translation = document.getElementById('translation');
+            const political = document.getElementById('political');
+            const political2 = document.getElementById('political2');
+            const common = document.getElementById('common');
+            const position = document.getElementById('position');
+            const finalScore = document.getElementById('finalScore');
+            const sequentialOutput = document.getElementById('sequentialOutput');
+
+            // 初始化计算
+            calculateScore();
+
+            // 监听所有输入变化
+            calculateBtn.addEventListener('click', calculateScore);
+            entryType.addEventListener('change', calculateScore);
+            wordCount.addEventListener('input', calculateScore);
+            imgCount.addEventListener('input', calculateScore);
+            newUser.addEventListener('change', calculateScore);
+            translation.addEventListener('change', calculateScore);
+            political.addEventListener('change', calculateScore);
+            political.addEventListener('change', upd_political);
+            political2.addEventListener('change', calculateScore);
+            common.addEventListener('change', calculateScore);
+            position.addEventListener('change', calculateScore);
+
+            function upd_political(){
+                political2.disabled=!political.checked;
+                political2.checked=political2.checked&&political.checked;
+            }
+
+            function calculateScore() {
+                // 获取输入值
+                const type = entryType.value;
+                let words = parseInt(wordCount.value) || 0;
+                let imgs = parseInt(imgCount.value) || 0;
+                const isNewUser = newUser.checked;
+                const isTranslation = translation.checked;
+
+                // 获取特殊分类乘数（取最大值）
+                let specialMultiplier = 1;
+                if (position.checked) specialMultiplier = Math.max(specialMultiplier, 3);
+                if (common.checked) specialMultiplier = Math.max(specialMultiplier, 2.2);
+                if (political.checked) specialMultiplier = Math.max(specialMultiplier, 2);
+
+                if(specialMultiplier===2&&political2.checked)specialMultiplier*=0.6;
+
+                // 确定基础分数和字数阈值
+                let baseScore, wordThreshold;
+                switch(type) {
+                    case '小作品':
+                        baseScore = 0.5;
+                        wordThreshold = 300;
+                        break;
+                    case 'DYK':
+                        baseScore = 1;
+                        wordThreshold = 1000;
+                        break;
+                    case 'GA':
+                        baseScore = 3;
+                        wordThreshold = 10000;
+                        break;
+                    default:
+                        baseScore = 0;
+                        wordThreshold = 0;
+                }
+
+                // 计算字数奖励
+                let wordBonus = 0;
+                if (words > wordThreshold) {
+                    const excessWords = words - wordThreshold;
+                    // 每100字0.02分
+                    wordBonus = Math.floor(excessWords / 100) * 0.02;
+                }
+                let imageS=Math.min(3,imgs)*0.2;
+
+                // 计算乘数
+                let multiplier = 1;
+                if (isTranslation) multiplier *= 0.8;
+                if (isNewUser) multiplier *= 1.2;
+                multiplier *= specialMultiplier;
+
+                // 计算最终得分
+                const finalScoreValue = (baseScore + wordBonus+imageS) * multiplier;
+
+                // 更新最终得分显示
+                finalScore.textContent = finalScoreValue.toFixed(5);
+
+                // 生成按顺序输出的内容
+                const flooredWords = Math.floor(words/100.0)*100;
+                let outputArray = [type, `${flooredWords}字`];
+
+                // 第三个输入：新用户（只有勾选时才体现）
+                if (isNewUser) {
+                    outputArray.push("新用户");
+                }
+
+                // 第五个输入：特殊分类（取最大的一个，如果没有勾选则不体现）
+                let specialCategory = "";
+                let spearr=[];
+                if (position.checked)spearr.push("白区有严重立场问题，符合标准");
+                if (common.checked) spearr.push("在6个参考书里4个及以上存在对应词条");
+                if (political.checked) spearr.push("中国政治概念、近现代史");
+                if(political2.checked)spearr.push("机关单位");
+                specialCategory=spearr.join("；")
+
+                if (specialCategory) {
+                    outputArray.push(specialCategory);
+                }
+                if(imgs!=0){
+                    outputArray.push(`${imgs}张原创图片`);
+                }
+
+                // 更新顺序输出显示
+                sequentialOutput.textContent = outputArray.join("；");
+            }
+
+            // 应用得分到当前条目的函数
+            applyScoreBtn.addEventListener('click', function() {
+                if(currentTemplateId !== -1) {
+                    const scoreValue = parseFloat(finalScore.textContent);
+                    if(!isNaN(scoreValue)) {
+                        // 更新模板数据
+                        templates[currentTemplateId].newScore = scoreValue;
+                        
+                        // 更新界面上的分数输入框
+                        const scoreInput = document.getElementById(`scoreInput${currentTemplateId}`);
+                        if(scoreInput) {
+                            scoreInput.value = scoreValue;
+                        }
+                        
+                        // 如果状态不是通过，将其改为通过状态
+                        const statusSelect = document.getElementById(`statusSelect${currentTemplateId}`);
+                        if(statusSelect && statusSelect.value !== 'pass') {
+                            statusSelect.value = 'pass';
+                            templates[currentTemplateId].newStatus = 'pass';
+                            
+                            // 启用分数输入框
+                            scoreInput.disabled = false;
+                        }
+                        
+                        updateOutput(); // 更新输出
+                        alert(`得分 ${scoreValue} 已应用到当前条目！`);
+                    } else {
+                        alert('请先计算得分再应用');
+                    }
+                } else {
+                    alert('没有选择要应用得分的条目');
+                }
+            });
+        });
+
         function updateTemplate(templateId, newStatus) {
             templates[templateId].newStatus = newStatus;
             
@@ -552,7 +984,9 @@
                 output += "待更新的项目:\n";
                 
                 templates.forEach(template => {
-                    output += `- 条目: ${template.entryName || 'Unknown'}, 页面: ${template.page || 'Unknown'}\n`;
+                    output += template.entryName && template.entryName.startsWith('[[') && template.entryName.endsWith(']]')
+    ? `- 条目: <a href=\"https://www.qiuwenbaike.cn/wiki/${template.entryName.slice(2, -2)}\" target=\"_blank\">${template.entryName.slice(2, -2)}</a>, 页面: ${template.page || 'Unknown'}\n`
+    : `- 条目: ${template.entryName || 'Unknown'}, 页面: ${template.page || 'Unknown'}\n`;
                     output += `  原状态: ${template.status || '未设置'}, 新状态: ${template.newStatus || template.status}\n`;
                     output += `  原分数: ${template.score || '无'}, 新分数: ${template.newScore || template.score}\n\n`;
                 });

@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>求闻百科“2026年春节编辑马拉松”条目评分计算器</title>
+    <link rel="stylesheet" href="/tools-for-26SFE/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>求闻百科“2026年春节编辑马拉松”条目评分计算器</h1>
+        </header>
+        
+        <div class="calculator">
+            <div class="input-section">
+                <div class="input-group">
+                    <h3><i class="fas fa-file-alt"></i> 条目类型</h3>
+                    <select id="entryType">
+                        <option value="小作品">小作品（基础分: 0.5）</option>
+                        <option value="DYK">DYK（基础分: 1）</option>
+                        <option value="GA">GA（基础分: 3）</option>
+                    </select>
+                </div>
+                
+                <div class="input-group">
+                    <h3><i class="fas fa-font"></i> 条目字数</h3>
+                    <input type="number" id="wordCount" min="0" step="1" placeholder="请输入字数">
+                    <h3><i class="fas fa-image"></i> 图片个数</h3>
+                    <input type="number" id="imgCount" min="0" step="1" value="0" placeholder="请输入图片个数">
+                </div>
+                
+                <div class="input-group">
+                    <h3><i class="fas fa-sliders-h"></i>乘数</h3>
+                    
+                    <div class="switch-group">
+                        <label class="switch">
+                            <input type="checkbox" id="newUser">
+                            <span class="slider"></span>
+                        </label>
+                        <span>新用户（1.2x）</span>
+                    </div>
+                    
+                    <div class="switch-group">
+                        <label class="switch">
+                            <input type="checkbox" id="translation">
+                            <span class="slider"></span>
+                        </label>
+                        <span>翻译条目（0.8x）</span>
+                    </div>
+                    
+                    <div style="margin-top: 15px;">
+                        <p style="margin-bottom: 10px; font-weight: 500;">特殊分类：</p>
+                        <div class="checkbox-group">
+                            <div class="checkbox-item">
+                                <input type="checkbox" id="political" value="2">
+                                <label for="political">关于中国政治概念、近现代史的条目（2x）</label>
+                            </div>
+                            <div class="checkbox-item indent">
+                                <input type="checkbox" id="political2" value="0.6" disabled>
+                                <label for="political2">机关单位类（0.6x）</label>
+                            </div>
+                            <div class="checkbox-item">
+                                <input type="checkbox" id="common" value="2.2">
+                                <label for="common">在中文白区、英文白区、中国大百科全书、辞海、现代汉语词典、术语在线这6个参考书里，4个及以上存在对应词条，但求闻百科没有的条目（2.2x）</label>
+                            </div>
+                            <div class="checkbox-item">
+                                <input type="checkbox" id="position" value="3">
+                                <label for="position">在白区的对应条目有严重立场问题，而该条目内容完全符合中国法律法规和求闻百科有关方针的（3x）</label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <button id="calculateBtn">
+                <i class="fas fa-calculator"></i> 计算得分
+            </button>
+            
+            <div class="result-section">
+                <h2>计算结果</h2>
+                <div class="result-display">
+                    <div class="score-box">
+                        <div class="score-label">最终得分</div>
+                        <div class="score-value" id="finalScore">0.00</div>
+                    </div>
+                    <div class="output-box">
+                        <div class="output-label">按顺序输出</div>
+                        <div class="output-value" id="sequentialOutput">等待计算...</div>
+                    </div>
+                </div>
+                
+                <div class="details">
+                    <h3>计算明细</h3>
+                    <div class="calculation-steps" id="calculationSteps">
+                        暂时废弃。
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const calculateBtn = document.getElementById('calculateBtn');
+            const entryType = document.getElementById('entryType');
+            const wordCount = document.getElementById('wordCount');
+            const imgCount = document.getElementById('imgCount');
+            const newUser = document.getElementById('newUser');
+            const translation = document.getElementById('translation');
+            const political = document.getElementById('political');
+            const political2 = document.getElementById('political2');
+            const common = document.getElementById('common');
+            const position = document.getElementById('position');
+            const finalScore = document.getElementById('finalScore');
+            const sequentialOutput = document.getElementById('sequentialOutput');
+            const calculationSteps = document.getElementById('calculationSteps');
+            
+            // 初始化计算
+            calculateScore();
+            
+            // 监听所有输入变化
+            calculateBtn.addEventListener('click', calculateScore);
+            entryType.addEventListener('change', calculateScore);
+            wordCount.addEventListener('input', calculateScore);
+            imgCount.addEventListener('input', calculateScore);
+            newUser.addEventListener('change', calculateScore);
+            translation.addEventListener('change', calculateScore);
+            political.addEventListener('change', calculateScore);
+            political.addEventListener('change', upd_political);
+            political2.addEventListener('change', calculateScore);
+            common.addEventListener('change', calculateScore);
+            position.addEventListener('change', calculateScore);
+            function upd_political(){
+                political2.disabled=!political.checked;
+                political2.checked=political2.checked&&political.checked;
+            }
+            
+            function calculateScore() {
+                // 获取输入值
+                const type = entryType.value;
+                let words = parseInt(wordCount.value) || 0;
+                let imgs = parseInt(imgCount.value) || 0;
+                const isNewUser = newUser.checked;
+                const isTranslation = translation.checked;
+                
+                // 获取特殊分类乘数（取最大值）
+                let specialMultiplier = 1;
+                if (position.checked) specialMultiplier = Math.max(specialMultiplier, 3);
+                if (common.checked) specialMultiplier = Math.max(specialMultiplier, 2.2);
+                if (political.checked) specialMultiplier = Math.max(specialMultiplier, 2);
+
+                if(specialMultiplier===2&&political2.checked)specialMultiplier*=0.6;
+                
+                // 确定基础分数和字数阈值
+                let baseScore, wordThreshold;
+                switch(type) {
+                    case '小作品':
+                        baseScore = 0.5;
+                        wordThreshold = 300;
+                        break;
+                    case 'DYK':
+                        baseScore = 1;
+                        wordThreshold = 1000;
+                        break;
+                    case 'GA':
+                        baseScore = 3;
+                        wordThreshold = 10000;
+                        break;
+                    default:
+                        baseScore = 0;
+                        wordThreshold = 0;
+                }
+                
+                // 计算字数奖励
+                let wordBonus = 0;
+                if (words > wordThreshold) {
+                    const excessWords = words - wordThreshold;
+                    // 每100字0.02分
+                    wordBonus = Math.floor(excessWords / 100) * 0.02;
+                }
+                let imageS=Math.min(3,imgs)*0.2;
+                
+                // 计算乘数
+                let multiplier = 1;
+                if (isTranslation) multiplier *= 0.8;
+                if (isNewUser) multiplier *= 1.2;
+                multiplier *= specialMultiplier;
+                
+                // 计算最终得分
+                const finalScoreValue = (baseScore + wordBonus+imageS) * multiplier;
+                
+                // 更新最终得分显示
+                finalScore.textContent = finalScoreValue.toFixed(5);
+                
+                // 生成按顺序输出的内容
+                const flooredWords = Math.floor(words/100.0)*100;
+                let outputArray = [type, `${flooredWords}字`];
+                
+                // 第三个输入：新用户（只有勾选时才体现）
+                if (isNewUser) {
+                    outputArray.push("新用户");
+                }
+                
+                // 第五个输入：特殊分类（取最大的一个，如果没有勾选则不体现）
+                let specialCategory = "";
+                let spearr=[];
+                if (position.checked)spearr.push("白区有严重立场问题，符合标准");
+                if (common.checked) spearr.push("在6个参考书里4个及以上存在对应词条");
+                if (political.checked) spearr.push("中国政治概念、近现代史");
+                if(political2.checked)spearr.push("机关单位");
+                specialCategory=spearr.join("；")
+                
+                if (specialCategory) {
+                    outputArray.push(specialCategory);
+                }
+                if(imgs!=0){
+                    outputArray.push(`${imgs}张原创图片`);
+                }
+                
+                // 更新顺序输出显示
+                sequentialOutput.textContent = outputArray.join("；");
+                
+                // // 更新计算步骤详情
+                // let stepsHTML = `
+                //     <p>1. <span class="highlight">${type}</span> 基础分数: <span class="highlight">${baseScore}分</span></p>
+                //     <p>2. 字数: <span class="highlight">${words}</span> 字，阈值: <span class="highlight">${wordThreshold}</span> 字，超出部分: <span class="highlight">${Math.max(0, words - wordThreshold)}</span> 字</p>
+                //     <p>   字数奖励: <span class="highlight">${wordBonus.toFixed(2)}</span> 分 (每100字0.02分)</p>
+                //     <p>3. 图片数：<span class="highlight">${imgs}</span>，得分：<span class="highlight">${imageS.toFixed(1)}分</span></p>
+                //     <p>4. 基础分 + 字数奖励: <span class="highlight">${(baseScore + wordBonus+imageS).toFixed(2)}</span> 分</p>
+                //     <p>5. 乘数计算:`;
+                
+                // if (isTranslation) {
+                //     stepsHTML += ` 翻译 ×0.8`;
+                // }
+                // if (isNewUser) {
+                //     stepsHTML += ` 新用户 ×1.2`;
+                // }
+                // if (specialMultiplier > 1) {
+                //     stepsHTML += ` ${specialCategory} ×${specialMultiplier}`;
+                // }
+                // if (!isTranslation && !isNewUser && specialMultiplier === 1) {
+                //     stepsHTML += ` 无乘数`;
+                // }
+                
+                // stepsHTML += `</p><p>6. 最终得分: <span class="highlight">${(baseScore + wordBonus+imageS).toFixed(5)}</span> × <span class="highlight">${multiplier.toFixed(5)}</span> = <span class="highlight">${finalScoreValue.toFixed(5)}</span> 分</p>`;
+                
+                // calculationSteps.innerHTML = stepsHTML;
+            }
+
+        });
+    </script>
+</body>
+</html>

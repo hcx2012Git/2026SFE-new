@@ -142,7 +142,7 @@ async function updatePagesFromJson(bot) {
             bot, 
             pageData.title, 
             pageData.items, 
-            pageData.summary || 'bot: 批量更新审核状态 (2026春节编辑松)'
+            pageData.summary || '快速审核（2026年春节编辑松小工具）'
         );
     }
     
@@ -198,14 +198,14 @@ async function startReviewProcess() {
         
         // 尝试打开浏览器
         const openCmd = process.platform === 'darwin' ? 'open' : process.platform === 'win32' ? 'start' : 'xdg-open';
-        const child = spawn(openCmd, ['b.html'], { shell: true });
+        const child = spawn(openCmd, ['review.html'], { shell: true });
         
         child.on('error', (err) => {
-            console.log(pc.yellow('[WARN] 自动打开浏览器失败，手动打开 b.html 文件'));
-            console.log(pc.cyan('提示: 请手动打开 b.html 文件进行审核，完成后运行 "node bot3.js --finish-review" 完成更新'));
+            console.log(pc.yellow('[WARN] 自动打开浏览器失败，手动打开 review.html 文件'));
+            console.log(pc.cyan('提示: 请手动打开 review.html 文件进行审核，完成后运行 "node review.js --finish-review" 完成更新'));
         });
 
-        console.log(pc.green('[SUCCESS] 审核页面已启动，请完成审核后再次运行 "node bot3.js --finish-review" 完成更新'));
+        console.log(pc.green('[SUCCESS] 审核页面已启动，请完成审核后再次运行 "node review.js --finish-review" 完成更新'));
         
     } catch (e) {
         console.error(pc.red('[FATAL] 初始化失败或认证无效:'), e);
@@ -404,7 +404,7 @@ async function updateLeaderboard(bot, participants) {
         content = replaceTableContent(content, '新星编者排行榜', newStarRows);
 
         // 写入更新后的排行榜
-        await bot.save(leaderboardTitle, content, 'bot: 更新排行榜数据 (2026春节编辑松)');
+        await bot.save(leaderboardTitle, content, '更新排行榜数据 (2026春节编辑松小工具)');
         console.log(pc.green('[SUCCESS] 总排行榜已更新。'));
 
     } catch (err) {
