@@ -57,7 +57,7 @@ async function main() {
     });
 
     const originalRequest = bot.request;
-    bot.request = async function(params) {
+bot.request = async function(params) {
     // 确保headers中的Authorization值只包含ASCII字符
     if(this.requestOptions.headers && this.requestOptions.headers.Authorization) {
         const authHeader = this.requestOptions.headers.Authorization;
@@ -101,8 +101,8 @@ async function main() {
         apfilterredir: 'nonredirects' // 仅获取非重定向页面，防止处理已移动留下的重定向页
     }).then(data => data.query.allpages);
 
-    const participants = [];
-
+    // 创建数组存储待审核的行
+    const pendingRows = [];
 
     // 6. 遍历每个用户的贡献页
     for (const page of pages) {
@@ -118,52 +118,85 @@ async function main() {
             const content = await bot.read(page.title);
             const wikitext = content.revisions[0].content;
             
-            // 解析统计数据：调用工具函数分析表格行数和得分
-            const { entryCount, totalScore } = utils.parseContributionPage(wikitext);
+            // 预处理：移除所有注释（包括多行注释），防止注释中的模板被误统计
+            // 使用 [\s\S] 匹配包括换行符在内的所有字符，处理跨行注释
+            const cleanedWikitext = wikitext.replace(/<!--[\s\S]*?-->/g, '');
+
+            // 按行分割文本，逐行处理
+            const lines = cleanedWikitext.split('\n');
+            let inTable = false;
             
-            // 格式化分数到小数点后两位
-            const formattedScore = utils.formatScore(totalScore);
-            
-            // 检查并更新用户的贡献页头部信息
-            const newContent = utils.updateUserPageContent(wikitext, entryCount, formattedScore);
-            
-            let isUpdated = false;
-            // 如果内容有变化（统计数据更新），则写入页面
-            if (newContent !== wikitext) {
-                isUpdated = true;
-                console.log(pc.yellow(`[ACTION] 更新页面 ${username}: 条目数=${entryCount}, 得分=${formattedScore}`));
-                await bot.save(page.title, newContent, '更新总得分和条目数');
-                // 礼貌延时：避免短时间大量写入请求，保护弱 API
-                await sleep(config.apiDelayMs); 
-            } else {
-                console.log(pc.gray(`[INFO] ${username} 的页面数据无需更新。`));
+            for (const line of lines) {
+                // 检测表格开始
+                if (line.trim().startsWith('{|')) {
+                    inTable = true;
+                    continue;
+                }
+                // 检测表格结束
+                if (line.trim().startsWith('|}')) {
+                    inTable = false;
+                }
+                
+                if (inTable) {
+                    // 过滤：排除导入综述行（包含"导入日志"）
+                    if (line.includes('导入日志')) {
+                        continue;
+                    }
+
+                    // 过滤：排除导入综述行（通常包含 Special:日志 和 type=import）
+                    if (line.includes('type=import') && (line.includes('Special:日志') || line.includes('Special:Log'))) {
+                        continue;
+                    }
+
+                    // 使用正则查找状态模板
+                    // 模板格式: {{2026SFEditasonStatus|状态|分数(可选)}}
+                    // 查找所有包含2026SFEditasonStatus模板的行
+                    const statusRegex = /\{\{2026SFEditasonStatus\|(.*?)(\|(.*?))*?\}\}/g;
+                    let match;
+                    while ((match = statusRegex.exec(line)) !== null) {
+                        // 提取状态参数（第一个参数）
+                        const status = match[1];
+                        
+                        // 检查状态是否为pending或未审核（空值）
+                        if (status.toLowerCase() === 'pending' || status.trim() === '') {
+                            // 添加到待审核行列表，包含页面标题和具体行
+                            pendingRows.push({
+                                page: page.title,
+                                user: username,
+                                line: line.trim()
+                            });
+                            
+                            console.log(pc.yellow(`[PENDING FOUND] ${page.title} - ${line.trim()}`));
+                        }
+                    }
+                }
             }
-
-            // 检查用户的资历状态，用于区分“熟练编者”和“新星编者”榜单
-            // 规则：2026年2月1日之前是否有 50 次编辑
-            const isVeteran = await checkVeteranStatus(bot, username);
-
-            // 收集数据用于后续更新总排行榜
-            participants.push({
-                username,
-                entryCount,
-                totalScore: formattedScore,
-                isVeteran,
-                pageTitle: page.title,
-                isUpdated
-            });
 
         } catch (err) {
             console.error(pc.red(`[ERROR] 处理页面 ${page.title} 时出错:`), err);
         }
     }
 
-    // 7. 更新总排行榜
-    await updateLeaderboard(bot, participants);
-
-    //if (process.env.GITHUB_STEP_SUMMARY) {
-    //    generateGithubSummary(participants);
-    //}
+    // 7. 将待审核的行写入到单独的txt文件
+    if (pendingRows.length > 0) {
+        const output = [];
+        output.push(`2026年春节编辑松待审核项目报告 - 生成时间: ${new Date().toLocaleString('zh-CN')}\n`);
+        output.push(`共找到 ${pendingRows.length} 个待审核项目\n`);
+        
+        for (let i = 0; i < pendingRows.length; i++) {
+            const row = pendingRows[i];
+            output.push(`${i + 1}. 用户: ${row.user}`);
+            output.push(`   页面: ${row.page}`);
+            output.push(`   行内容: ${row.line}`);
+            output.push('');
+        }
+        
+        fs.writeFileSync('pending_reviews.txt', output.join('\n'), 'utf8');
+        console.log(pc.green(`[SUCCESS] 已将 ${pendingRows.length} 个待审核项目写入 pending_reviews.txt 文件`));
+    } else {
+        console.log(pc.green('[INFO] 未找到待审核项目'));
+        fs.writeFileSync('pending_reviews.txt', `2026年春节编辑松待审核项目报告 - 生成时间: ${new Date().toLocaleString('zh-CN')}\n\n未找到待审核项目`, 'utf8');
+    }
 }
 
 /**
@@ -239,7 +272,7 @@ async function updateLeaderboard(bot, participants) {
         content = replaceTableContent(content, '新星编者排行榜', newStarRows);
 
         // 写入更新后的排行榜
-        await bot.save(leaderboardTitle, content, '更新排行榜');
+        await bot.save(leaderboardTitle, content, 'bot: 更新排行榜数据 (2026春节编辑松)');
         console.log(pc.green('[SUCCESS] 总排行榜已更新。'));
 
     } catch (err) {
@@ -356,7 +389,7 @@ function replaceTableContent(fullText, sectionName, newRows) {
     const tableHead = tableContent.substring(0, splitPoint);
     const newTable = `${tableHead}${newRows}\n`; // existing part includes start of table up to first |- (exclusive? no |- is start of row)
     
-    // Wait, `splitPoint` is index of `|-`.
+    // Wait, [splitPoint](file://h:\Codes\2026SFE\bot.js#L351-L351) is index of `|-`.
     // If I take 0 to splitPoint, I get headers.
     // Then I add `newRows` (which should start with `|-`).
     // Then close with `|}`.

@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>2026年春节编辑松 - 半自动审核工具</title>
+    <style>
+        body {
+            font-family: "Microsoft YaHei", Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            padding: 20px;
+        }
+        
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 30px;
+        }
+        
+        .instructions {
+            background-color: #e3f2fd;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+        }
+        
+        .input-section {
+            margin-bottom: 30px;
+        }
+        
+        textarea {
+            width: 100%;
+            min-height: 200px;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            resize: vertical;
+            font-family: monospace;
+            font-size: 14px;
+        }
+        
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+            flex-wrap: wrap;
+        }
+        
+        button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background-color 0.3s;
+        }
+        
+        .btn-parse {
+            background-color: #007bff;
+            color: white;
+        }
+        
+        .btn-parse:hover {
+            background-color: #0056b3;
+        }
+        
+        .btn-update-all {
+            background-color: #28a745;
+            color: white;
+        }
+        
+        .btn-update-all:hover {
+            background-color: #1e7e34;
+        }
+        
+        .btn-save-json {
+            background-color: #17a2b8;
+            color: white;
+        }
+        
+        .btn-save-json:hover {
+            background-color: #138496;
+        }
+        
+        .btn-load-pending {
+            background-color: #ffc107;
+            color: #212529;
+        }
+        
+        .btn-load-pending:hover {
+            background-color: #e0a800;
+        }
+        
+        .btn-finish-review {
+            background-color: #dc3545;
+            color: white;
+        }
+        
+        .btn-finish-review:hover {
+            background-color: #c82333;
+        }
+        
+        .results-section {
+            margin-top: 20px;
+        }
+        
+        .template-item {
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin-bottom: 15px;
+            padding: 15px;
+            background-color: #fafafa;
+        }
+        
+        .template-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            font-weight: bold;
+        }
+        
+        .template-content {
+            background-color: #fff;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: monospace;
+            word-break: break-all;
+        }
+        
+        .controls {
+            display: flex;
+            gap: 15px;
+            margin-top: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        
+        .control-group {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        select, input {
+            padding: 5px;
+            border: 1px solid #ccc;
+            border-radius: 3px;
+        }
+        
+        .status-select {
+            background-color: #e7f3ff;
+        }
+        
+        .score-input {
+            width: 80px;
+        }
+        
+        .update-btn {
+            background-color: #28a745;
+            color: white;
+        }
+        
+        .update-btn:hover {
+            background-color: #218838;
+        }
+        
+        .stats {
+            background-color: #e3f2fd;
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+        }
+        
+        .output-section {
+            margin-top: 30px;
+        }
+        
+        .hidden {
+            display: none;
+        }
+        
+        .file-upload {
+            margin: 10px 0;
+        }
+        
+        .file-upload input {
+            margin-right: 10px;
+        }
+        
+        .auto-update-notice {
+            background-color: #fff3cd;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+            border-left: 4px solid #ffc107;
+        }
+        
+        .completion-message {
+            background-color: #d4edda;
+            color: #155724;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 20px 0;
+            text-align: center;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>2026年春节编辑松 - 半自动审核工具</h1>
+        
+        <div class="instructions">
+            <h3>使用说明：</h3>
+            <ol>
+                <li><strong>方式一（手动）</strong>：在下方输入框粘贴Wikitext内容，点击"解析模板"</li>
+                <li><strong>方式二（自动）</strong>：运行 <code>node bot3.js</code>，程序将自动打开此页面</li>
+                <li>审核完成后，点击"完成审核并保存"按钮自动运行 <code>node bot3.js --finish-review</code></li>
+            </ol>
+        </div>
+        
+        <div class="input-section">
+            <h2>输入 Wikitext 内容</h2>
+            <textarea id="wikitextInput" placeholder="请粘贴包含 {{2026SFEditasonStatus|...|...}} 模板的 Wikitext 内容..."></textarea>
+            <div class="button-group">
+                <button class="btn-parse" onclick="parseTemplates()">解析模板</button>
+                <button class="btn-load-pending" onclick="loadPendingData()">加载待审核数据</button>
+                <button class="btn-update-all" onclick="updateAllTemplates()">一键通过所有模板</button>
+            </div>
+            
+            <div class="file-upload">
+                <label for="jsonDataFile">上传 pending_data.json 文件：</label>
+                <input type="file" id="jsonDataFile" accept=".json" onchange="handleJsonFileUpload(event)">
+            </div>
+        </div>
+        
+        <div class="auto-update-notice">
+            <strong>注意：</strong> 修改状态或分数后，系统会自动更新输出内容。
+        </div>
+        
+        <div class="stats hidden" id="statsDiv">
+            <strong>统计信息:</strong>
+            <span id="statsText"></span>
+        </div>
+        
+        <div class="results-section hidden" id="resultsSection">
+            <h2>待审核模板列表</h2>
+            <div id="templatesContainer"></div>
+        </div>
+        
+        <div class="output-section hidden" id="outputSection">
+            <h2>更新后的 Wikitext 内容</h2>
+            <textarea id="outputArea" readonly></textarea>
+            <div class="button-group">
+                <button onclick="copyToClipboard()">复制到剪贴板</button>
+                <button class="btn-save-json" onclick="saveUpdateData()">保存更新数据 (JSON)</button>
+            </div>
+        </div>
+        
+        <div class="completion-message hidden" id="completionMessage">
+            <h3>审核完成！</h3>
+            <p>所有更改已保存，正在自动运行 bot3.js 完成页面更新...</p>
+            <p>请稍等片刻查看结果。</p>
+        </div>
+        
+        <div class="button-group">
+            <button class="btn-finish-review" onclick="finishReview()" id="finishReviewBtn">完成审核并保存</button>
+        </div>
+    </div>
+
+    <script>
+        let templates = [];
+        let currentPageTitle = '';
+        
+        function parseTemplates() {
+            const input = document.getElementById('wikitextInput').value;
+            if (!input.trim()) {
+                alert('请输入 Wikitext 内容');
+                return;
+            }
+            
+            // 清理注释（类似 utils.js 中的处理）
+            const cleanedInput = input.replace(/<!--[\s\S]*?-->/g, '');
+            
+            // 正则表达式匹配 {{2026SFEditasonStatus|状态|分数}} 模板
+            const statusRegex = /\{\{2026SFEditasonStatus\|(.*?)(\|([\d.]+))?\}\}/g;
+            let match;
+            templates = [];
+            let lastIndex = 0;
+            
+            while ((match = statusRegex.exec(cleanedInput)) !== null) {
+                const fullMatch = match[0];
+                const status = match[1] || '';
+                const score = match[3] || '';
+                
+                // 找到匹配项在整个文本中的位置
+                const position = match.index;
+                
+                templates.push({
+                    original: fullMatch,
+                    status: status.trim(),
+                    score: score.trim(),
+                    position: position,
+                    id: templates.length,
+                    originalLine: findOriginalLine(cleanedInput, position)
+                });
+            }
+            
+            currentPageTitle = 'Unknown Page'; // 在手动输入模式下，页面标题未知
+            displayTemplates();
+            updateStats();
+        }
+        
+        // 辅助函数：找到模板所在的原始行
+        function findOriginalLine(text, position) {
+            const lines = text.split('\n');
+            let currentPos = 0;
+            
+            for (let i = 0; i < lines.length; i++) {
+                const lineEnd = currentPos + lines[i].length + 1; // +1 for newline character
+                
+                if (position >= currentPos && position < lineEnd) {
+                    return lines[i].trim();
+                }
+                
+                currentPos = lineEnd;
+            }
+            
+            return 'Unknown line';
+        }
+        
+        function loadPendingData() {
+            // 尝试从本地加载 pending_data.json 文件
+            fetch('pending_data.json')
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('未找到 pending_data.json 文件，请先运行 node bot3.js');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    templates = data.map((item, index) => ({
+                        ...item,
+                        id: index,
+                        newStatus: item.status, // 当前状态作为新状态的初始值
+                        newScore: item.score    // 当前分数作为新分数的初始值
+                    }));
+                    
+                    displayTemplates();
+                    updateStats();
+                })
+                .catch(error => {
+                    alert(`加载待审核数据失败: ${error.message}\n\n请确保已运行 'node bot3.js' 并生成了 pending_data.json 文件`);
+                    console.error('Error loading pending data:', error);
+                });
+        }
+        
+        function handleJsonFileUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    templates = data.map((item, index) => ({
+                        ...item,
+                        id: index,
+                        newStatus: item.status, // 当前状态作为新状态的初始值
+                        newScore: item.score    // 当前分数作为新分数的初始值
+                    }));
+                    
+                    displayTemplates();
+                    updateStats();
+                } catch (error) {
+                    alert('JSON 文件解析失败: ' + error.message);
+                }
+            };
+            reader.readAsText(file);
+        }
+        
+        function displayTemplates() {
+            const container = document.getElementById('templatesContainer');
+            container.innerHTML = '';
+            
+            if (templates.length === 0) {
+                container.innerHTML = '<p>未找到 {{2026SFEditasonStatus}} 模板</p>';
+                document.getElementById('resultsSection').classList.remove('hidden');
+                return;
+            }
+            
+            templates.forEach(template => {
+                const templateElement = document.createElement('div');
+                templateElement.className = 'template-item';
+                templateElement.innerHTML = `
+                    <div class="template-header">
+                        <span>页面: ${template.page || 'Unknown'} | 用户: ${template.user || 'Unknown'}</span>
+                        <span>原状态: ${template.status || '未设置'} ${template.score ? '| 原分数: ' + template.score : ''}</span>
+                    </div>
+                    <div class="template-content">${template.originalLine || template.original}</div>
+                    <div class="controls">
+                        <div class="control-group">
+                            <label>状态:</label>
+                            <select class="status-select" onchange="updateTemplate(${template.id}, this.value)" id="statusSelect${template.id}">
+                                <option value="pending" ${(template.newStatus || template.status) === 'pending' ? 'selected' : ''}>待审核</option>
+                                <option value="reject" ${(template.newStatus || template.status) === 'reject' ? 'selected' : ''}>拒绝</option>
+                                <option value="pass" ${(template.newStatus || template.status) === 'pass' ? 'selected' : ''}>通过</option>
+                            </select>
+                        </div>
+                        <div class="control-group">
+                            <label>分数:</label>
+                            <input type="number" step="0.1" min="0" class="score-input" value="${template.newScore !== undefined ? template.newScore : template.score}" 
+                                   onchange="updateTemplateScore(${template.id}, this.value)" id="scoreInput${template.id}"
+                                   ${(template.newStatus || template.status) !== 'pass' ? 'disabled' : ''}>
+                        </div>
+                        <button class="update-btn" onclick="updateSingleTemplate(${template.id})">更新此模板</button>
+                    </div>
+                `;
+                container.appendChild(templateElement);
+            });
+            
+            document.getElementById('resultsSection').classList.remove('hidden');
+        }
+        
+        function updateTemplate(templateId, newStatus) {
+            templates[templateId].newStatus = newStatus;
+            
+            // 如果状态变为通过，启用分数输入框；如果是拒绝或待审核，禁用分数输入框
+            const scoreInput = document.getElementById(`scoreInput${templateId}`);
+            if (newStatus === 'pass') {
+                scoreInput.disabled = false;
+            } else {
+                scoreInput.disabled = true;
+            }
+            
+            updateOutput();
+        }
+        
+        function updateTemplateScore(templateId, newScore) {
+            templates[templateId].newScore = newScore;
+            updateOutput();
+        }
+        
+        function updateSingleTemplate(templateId) {
+            // 更新对应的选择框和输入框的值
+            const statusSelect = document.getElementById(`statusSelect${templateId}`);
+            const scoreInput = document.getElementById(`scoreInput${templateId}`);
+            
+            templates[templateId].newStatus = statusSelect.value;
+            if (statusSelect.value === 'pass') {
+                templates[templateId].newScore = scoreInput.value;
+            }
+            
+            updateOutput();
+        }
+        
+        function updateAllTemplates() {
+            // 将所有模板状态设置为通过，并根据某种规则设置分数
+            templates.forEach((template, index) => {
+                template.newStatus = 'pass';
+                // 默认分数可以根据模板在列表中的位置或其他规则设定
+                if (!template.newScore || template.newScore === '') {
+                    template.newScore = (index + 1) * 1; // 示例：按顺序分配分数
+                }
+            });
+            
+            // 更新所有界面元素
+            templates.forEach((template, index) => {
+                const statusSelect = document.getElementById(`statusSelect${index}`);
+                const scoreInput = document.getElementById(`scoreInput${index}`);
+                
+                if (statusSelect) statusSelect.value = 'pass';
+                if (scoreInput) {
+                    scoreInput.value = template.newScore || template.score;
+                    scoreInput.disabled = false;
+                }
+            });
+            
+            updateOutput();
+        }
+        
+        function updateOutput() {
+            // 根据当前的templates数组生成新的Wikitext内容
+            if (currentPageTitle) {
+                // 如果是从输入框解析的，基于输入内容生成
+                let output = document.getElementById('wikitextInput').value;
+                
+                // 从后往前替换，避免位置偏移问题
+                const sortedTemplates = [...templates].sort((a, b) => (b.position || 0) - (a.position || 0));
+                
+                for (const template of sortedTemplates) {
+                    if (template.original && template.newStatus !== undefined) {
+                        // 构造新的模板字符串
+                        let newTemplate = `{{2026SFEditasonStatus|${template.newStatus}`;
+                        if (template.newScore && template.newStatus === 'pass') {
+                            newTemplate += `|${template.newScore}`;
+                        }
+                        newTemplate += '}}';
+                        
+                        // 替换原始模板
+                        output = output.replace(template.original, newTemplate);
+                    }
+                }
+                
+                document.getElementById('outputArea').value = output;
+            } else {
+                // 如果是从pending_data.json加载的，不直接生成完整内容，而是准备更新数据
+                // 输出区域将显示更新摘要
+                let output = "这是更新摘要，实际更新将在完成审核后自动进行。\n\n";
+                output += "待更新的项目:\n";
+                
+                templates.forEach(template => {
+                    output += `- 页面: ${template.page || 'Unknown'}, 用户: ${template.user || 'Unknown'}\n`;
+                    output += `  原状态: ${template.status || '未设置'}, 新状态: ${template.newStatus || template.status}\n`;
+                    output += `  原分数: ${template.score || '无'}, 新分数: ${template.newScore || template.score}\n\n`;
+                });
+                
+                document.getElementById('outputArea').value = output;
+            }
+            
+            document.getElementById('outputSection').classList.remove('hidden');
+            updateStats();
+        }
+        
+        function updateStats() {
+            if (templates.length === 0) {
+                document.getElementById('statsDiv').classList.add('hidden');
+                return;
+            }
+            
+            const stats = {
+                total: templates.length,
+                passed: templates.filter(t => (t.newStatus || t.status) === 'pass').length,
+                rejected: templates.filter(t => (t.newStatus || t.status) === 'reject').length,
+                pending: templates.filter(t => (t.newStatus || t.status) === 'pending').length,
+                totalScore: templates
+                    .filter(t => (t.newStatus || t.status) === 'pass' && (t.newScore !== undefined ? t.newScore : t.score))
+                    .reduce((sum, t) => sum + parseFloat((t.newScore !== undefined ? t.newScore : t.score) || 0), 0)
+            };
+            
+            document.getElementById('statsText').innerHTML = 
+                `总计: ${stats.total}, 通过: ${stats.passed}, 拒绝: ${stats.rejected}, 待审核: ${stats.pending}, 总分: ${stats.totalScore.toFixed(1)}`;
+            document.getElementById('statsDiv').classList.remove('hidden');
+        }
+        
+        function copyToClipboard() {
+            const outputArea = document.getElementById('outputArea');
+            outputArea.select();
+            document.execCommand('copy');
+            alert('已复制到剪贴板！');
+        }
+        
+        function saveUpdateData() {
+            if (templates.length === 0) {
+                alert('没有数据可保存');
+                return;
+            }
+            
+            // 准备更新数据
+            const updateData = [];
+            const pagesToUpdate = {};
+            
+            templates.forEach(template => {
+                // 收集每个页面的更新信息
+                const pageTitle = template.page || currentPageTitle;
+                
+                if (!pagesToUpdate[pageTitle]) {
+                    pagesToUpdate[pageTitle] = {
+                        title: pageTitle,
+                        content: '', // 将在服务器端获取原始内容并更新
+                        items: [],
+                        summary: 'bot: 批量更新审核状态 (2026春节编辑松)'
+                    };
+                }
+                
+                // 添加项目到页面的更新列表
+                pagesToUpdate[pageTitle].items.push({
+                    original: template.original,
+                    newStatus: template.newStatus || template.status,
+                    newScore: template.newScore || template.score,
+                    status: template.status,
+                    score: template.score
+                });
+            });
+            
+            // 转换为适合bot使用的格式
+            const finalUpdateData = Object.values(pagesToUpdate).map(page => {
+                return {
+                    title: page.title,
+                    items: page.items,
+                    summary: page.summary
+                };
+            });
+            
+            // 生成JSON并下载
+            const jsonData = JSON.stringify(finalUpdateData, null, 2);
+            const blob = new Blob([jsonData], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'updated_pages.json';
+            document.body.appendChild(a);
+            a.click();
+            
+            // 清理
+            setTimeout(() => {
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(url);
+            }, 0);
+            
+            alert('更新数据已保存为 updated_pages.json 文件');
+        }
+        
+        function finishReview() {
+            if (templates.length === 0) {
+                alert('没有数据可保存');
+                return;
+            }
+            
+            // 显示完成消息
+            document.getElementById('completionMessage').classList.remove('hidden');
+            document.getElementById('finishReviewBtn').disabled = true;
+            
+            // 保存更新数据
+            saveUpdateData();
+            
+            // 通过文件下载的方式模拟调用后端脚本
+            // 注意：在浏览器环境中无法直接执行Node.js脚本
+            // 因此我们需要提示用户执行命令
+            setTimeout(() => {
+                alert('审核数据已保存！\n\n请在终端中运行以下命令完成页面更新：\nnode bot3.js --finish-review');
+                
+                // 恢复按钮状态
+                document.getElementById('finishReviewBtn').disabled = false;
+            }, 2000);
+        }
+        
+        // 页面加载完成后的初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            // 检查是否有本地的 pending_data.json 文件并自动加载
+            fetch('pending_data.json')
+                .then(response => {
+                    if (response.ok) {
+                        // 如果有文件，自动加载
+                        loadPendingData();
+                    }
+                })
+                .catch(error => {
+                    // 如果没有文件则忽略
+                });
+        });
+    </script>
+</body>
+</html>

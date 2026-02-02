@@ -2,7 +2,7 @@ require('dotenv').config();
 
 module.exports = {
     apiUrl: process.env.API_URL || 'https://www.qiuwenbaike.cn/api.php',
-    userAgent: process.env.BOT_USER_AGENT || '2026SpringFestivalEditathonBot/1.1 (Node.js/mwn; +https://www.qiuwenbaike.cn/User:Bot)',
+    userAgent: process.env.BOT_USER_AGENT || 'Qiuwen/1.1 2026SpringFestivalEditathonTool/1.1 (Node.js/mwn; +https://www.qiuwenbaike.cn/index.php?curid=2922424)',
     apiDelayMs: parseInt(process.env.API_DELAY_MS, 10) || 2000,
     // OAuth 2.0 Credentials
     oauth2: {

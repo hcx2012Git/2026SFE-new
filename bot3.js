@@ -3,6 +3,8 @@ const fs = require('fs');
 const config = require('./config');
 const utils = require('./utils');
 const pc = require('picocolors');
+const { spawn } = require('child_process');
+const path = require('path');
 
 async function getOAuth2Token() {
     // MediaWiki OAuth 2.0 Client Credentials Grant
@@ -17,7 +19,7 @@ async function getOAuth2Token() {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/x-www-form-urlencoded',
-                'User-Agent': config.userAgent
+                'UserAgent': config.userAgent
             },
             body: new URLSearchParams({
                 grant_type: 'client_credentials',
@@ -39,14 +41,108 @@ async function getOAuth2Token() {
     }
 }
 
-// 封装主逻辑，增加错误处理，确保脚本退出状态正确
-async function main() {
-    // 1. 获取 OAuth 2.0 Token
-    // 优先使用直接提供的 Access Token，否则尝试通过 Client Credentials 获取
+/**
+ * 更新单个页面的内容
+ */
+async function updatePageContent(bot, pageTitle, newContent, summary) {
+    try {
+        await bot.save(pageTitle, newContent, summary);
+        console.log(pc.green(`[SUCCESS] 页面已更新: ${pageTitle}`));
+        return true;
+    } catch (err) {
+        console.error(pc.red(`[ERROR] 更新页面失败 ${pageTitle}:`), err);
+        return false;
+    }
+}
+
+/**
+ * 从API获取所有贡献页面
+ */
+async function getAllContributionPages(bot) {
+    const prefix = 'Qiuwen:2026年春节编辑松/提交/';
+    const pages = await bot.request({
+        action: 'query',
+        list: 'allpages',
+        apprefix: '2026年春节编辑松/提交/',
+        apnamespace: 4, // 4 代表 Project 命名空间 (即 Qiuwen:)
+        aplimit: 'max',
+        apfilterredir: 'nonredirects' // 仅获取非重定向页面，防止处理已移动留下的重定向页
+    }).then(data => data.query.allpages);
+
+    return pages.filter(page => page.title.endsWith('的贡献'));
+}
+
+/**
+ * 查找所有待审核的项目并保存到JSON文件
+ */
+async function findPendingReviews(bot) {
+    const pages = await getAllContributionPages(bot);
+    const pendingData = [];
+
+    for (const page of pages) {
+        const username = page.title.replace('Qiuwen:2026年春节编辑松/提交/', '').replace('的贡献', '');
+        console.log(pc.dim(`[INFO] 正在处理用户: ${username}...`));
+
+        try {
+            const content = await bot.read(page.title);
+            const wikitext = content.revisions[0].content;
+            
+            const result = utils.parseContributionPageWithDetails(wikitext);
+            const pendingItems = result.items.filter(item => item.status.toLowerCase() === 'pending' || item.status.trim() === '');
+
+            for (const item of pendingItems) {
+                pendingData.push({
+                    page: page.title,
+                    user: username,
+                    originalLine: item.originalLine,
+                    status: item.status,
+                    score: item.score,
+                    position: item.position
+                });
+            }
+        } catch (err) {
+            console.error(pc.red(`[ERROR] 处理页面 ${page.title} 时出错:`), err);
+        }
+    }
+
+    // 保存待审核数据到JSON文件
+    fs.writeFileSync('pending_data.json', JSON.stringify(pendingData, null, 2), 'utf8');
+    console.log(pc.green(`[SUCCESS] 已将 ${pendingData.length} 个待审核项目保存到 pending_data.json 文件`));
+
+    return pendingData;
+}
+
+/**
+ * 从JSON文件读取更新数据并更新页面
+ */
+async function updatePagesFromJson(bot) {
+    if (!fs.existsSync('updated_pages.json')) {
+        console.error(pc.red('[ERROR] 未找到 updated_pages.json 文件'));
+        return false;
+    }
+
+    const updatedPages = JSON.parse(fs.readFileSync('updated_pages.json', 'utf8'));
+    
+    for (const pageData of updatedPages) {
+        console.log(pc.cyan(`[INFO] 正在更新页面: ${pageData.title}`));
+        await updatePageContent(
+            bot, 
+            pageData.title, 
+            pageData.content, 
+            pageData.summary || 'bot: 批量更新审核状态 (2026春节编辑松)'
+        );
+    }
+    
+    console.log(pc.green('[SUCCESS] 所有页面更新完成'));
+    return true;
+}
+
+/**
+ * 自动打开浏览器并启动审核流程
+ */
+async function startReviewProcess() {
     const accessToken = config.oauth2.accessToken || await getOAuth2Token();
 
-    // 2. 初始化 bot 实例
-    // 使用 new Mwn() 而不是 init()，因为我们手动处理认证
     const bot = new Mwn({
         apiUrl: config.apiUrl,
         userAgent: config.userAgent,
@@ -58,116 +154,172 @@ async function main() {
 
     const originalRequest = bot.request;
     bot.request = async function(params) {
-    // 确保headers中的Authorization值只包含ASCII字符
-    if(this.requestOptions.headers && this.requestOptions.headers.Authorization) {
-        const authHeader = this.requestOptions.headers.Authorization;
-        const cleanAuthHeader = authHeader.split('').filter(char => 
-            char.charCodeAt(0) <= 255
-        ).join('');
-        this.requestOptions.headers.Authorization = cleanAuthHeader;
-    }
-    return originalRequest.call(this, params);
-};
+        // 确保headers中的Authorization值只包含ASCII字符
+        if(this.requestOptions.headers && this.requestOptions.headers.Authorization) {
+            const authHeader = this.requestOptions.headers.Authorization;
+            const cleanAuthHeader = authHeader.split('').filter(char => 
+                char.charCodeAt(0) <= 255
+            ).join('');
+            this.requestOptions.headers.Authorization = cleanAuthHeader;
+        }
+        return originalRequest.call(this, params);
+    };
 
-    // 3. 注入 Header
     bot.requestOptions.headers = {
         ...bot.requestOptions.headers,
         'Authorization': `Bearer ${accessToken}`
     };
 
     try {
-        // 4. 获取 CSRF Token 等所有需要的 token (edit, delete, etc)
-        // Mwn 会自动尝试获取，但我们可以显式调用 getTokens() 确认登录有效
         console.log(pc.blue('[INFO] 验证登录状态并获取编辑令牌...'));
-        await bot.getTokens(); // 这会发送一个 meta=tokens 请求，利用 Bearer token 认证
+        await bot.getTokens();
         
         const user = await bot.userinfo();
         console.log(pc.green(`[INFO] 登录成功，当前身份: ${user.name}`));
 
+        // 查找待审核项目
+        await findPendingReviews(bot);
+
+        // 启动审核页面
+        console.log(pc.cyan('[INFO] 启动审核页面...'));
+        
+        // 尝试打开浏览器
+        const openCmd = process.platform === 'darwin' ? 'open' : process.platform === 'win32' ? 'start' : 'xdg-open';
+        const child = spawn(openCmd, ['b.html'], { shell: true });
+        
+        child.on('error', (err) => {
+            console.log(pc.yellow('[WARN] 自动打开浏览器失败，手动打开 b.html 文件'));
+            console.log(pc.cyan('提示: 请手动打开 b.html 文件进行审核，完成后运行 "node bot3.js --finish-review" 完成更新'));
+        });
+
+        console.log(pc.green('[SUCCESS] 审核页面已启动，请完成审核后再次运行 "node bot3.js --finish-review" 完成更新'));
+        
     } catch (e) {
         console.error(pc.red('[FATAL] 初始化失败或认证无效:'), e);
         process.exit(1);
     }
-
-    // 5. 查找所有的贡献页面
-    // 逻辑：扫描 'Project' (NS 4) 命名空间下以特定前缀开头的页面
-    const prefix = 'Qiuwen:2026年春节编辑松/提交/';
-    const pages = await bot.request({
-        action: 'query',
-        list: 'allpages',
-        apprefix: '2026年春节编辑松/提交/',
-        apnamespace: 4, // 4 代表 Project 命名空间 (即 Qiuwen:)
-        aplimit: 'max',
-        apfilterredir: 'nonredirects' // 仅获取非重定向页面，防止处理已移动留下的重定向页
-    }).then(data => data.query.allpages);
-
-    const participants = [];
-
-
-    // 6. 遍历每个用户的贡献页
-    for (const page of pages) {
-        // 过滤掉非贡献页（例如可能是模板或说明页，虽然前缀已限制，但后缀校验更安全）
-        if (!page.title.endsWith('的贡献')) continue;
-
-        // 从标题中提取用户名：Qiuwen:2026年春节编辑松/提交/UserA的贡献 -> UserA
-        const username = page.title.replace(prefix, '').replace('的贡献', '');
-        console.log(pc.dim(`[INFO] 正在处理用户: ${username}...`));
-
-        try {
-            // 读取页面内容
-            const content = await bot.read(page.title);
-            const wikitext = content.revisions[0].content;
-            
-            // 解析统计数据：调用工具函数分析表格行数和得分
-            const { entryCount, totalScore } = utils.parseContributionPage(wikitext);
-            
-            // 格式化分数到小数点后两位
-            const formattedScore = utils.formatScore(totalScore);
-            
-            // 检查并更新用户的贡献页头部信息
-            const newContent = utils.updateUserPageContent(wikitext, entryCount, formattedScore);
-            
-            let isUpdated = false;
-            // 如果内容有变化（统计数据更新），则写入页面
-            if (newContent !== wikitext) {
-                isUpdated = true;
-                console.log(pc.yellow(`[ACTION] 更新页面 ${username}: 条目数=${entryCount}, 得分=${formattedScore}`));
-                await bot.save(page.title, newContent, '更新总得分和条目数');
-                // 礼貌延时：避免短时间大量写入请求，保护弱 API
-                await sleep(config.apiDelayMs); 
-            } else {
-                console.log(pc.gray(`[INFO] ${username} 的页面数据无需更新。`));
-            }
-
-            // 检查用户的资历状态，用于区分“熟练编者”和“新星编者”榜单
-            // 规则：2026年2月1日之前是否有 50 次编辑
-            const isVeteran = await checkVeteranStatus(bot, username);
-
-            // 收集数据用于后续更新总排行榜
-            participants.push({
-                username,
-                entryCount,
-                totalScore: formattedScore,
-                isVeteran,
-                pageTitle: page.title,
-                isUpdated
-            });
-
-        } catch (err) {
-            console.error(pc.red(`[ERROR] 处理页面 ${page.title} 时出错:`), err);
-        }
-    }
-
-    // 7. 更新总排行榜
-    await updateLeaderboard(bot, participants);
-
-    //if (process.env.GITHUB_STEP_SUMMARY) {
-    //    generateGithubSummary(participants);
-    //}
 }
 
 /**
- * 检查用户是否为“熟练编者”
+ * 完成审核并更新页面
+ */
+async function finishReviewProcess() {
+    const accessToken = config.oauth2.accessToken || await getOAuth2Token();
+
+    const bot = new Mwn({
+        apiUrl: config.apiUrl,
+        userAgent: config.userAgent,
+        defaultParams: {
+            assert: 'user', // 强制要求登录状态
+            maxlag: 5 
+        }
+    });
+
+    const originalRequest = bot.request;
+    bot.request = async function(params) {
+        // 确保headers中的Authorization值只包含ASCII字符
+        if(this.requestOptions.headers && this.requestOptions.headers.Authorization) {
+            const authHeader = this.requestOptions.headers.Authorization;
+            const cleanAuthHeader = authHeader.split('').filter(char => 
+                char.charCodeAt(0) <= 255
+            ).join('');
+            this.requestOptions.headers.Authorization = cleanAuthHeader;
+        }
+        return originalRequest.call(this, params);
+    };
+
+    bot.requestOptions.headers = {
+        ...bot.requestOptions.headers,
+        'Authorization': `Bearer ${accessToken}`
+    };
+
+    try {
+        console.log(pc.blue('[INFO] 验证登录状态并获取编辑令牌...'));
+        await bot.getTokens();
+        
+        const user = await bot.userinfo();
+        console.log(pc.green(`[INFO] 登录成功，当前身份: ${user.name}`));
+
+        // 从JSON文件更新页面
+        await updatePagesFromJson(bot);
+        
+        // 删除临时文件
+        if (fs.existsSync('updated_pages.json')) {
+            fs.unlinkSync('updated_pages.json');
+            console.log(pc.cyan('[INFO] 已删除临时更新文件 updated_pages.json'));
+        }
+        
+        if (fs.existsSync('pending_data.json')) {
+            fs.unlinkSync('pending_data.json');
+            console.log(pc.cyan('[INFO] 已删除临时数据文件 pending_data.json'));
+        }
+
+    } catch (e) {
+        console.error(pc.red('[FATAL] 完成审核过程失败:'), e);
+        process.exit(1);
+    }
+}
+
+// 封装主逻辑，增加错误处理，确保脚本退出状态正确
+async function main() {
+    // 根据命令行参数决定执行哪种操作
+    if (process.argv.includes('--finish-review')) {
+        // 完成审核并更新页面
+        await finishReviewProcess();
+    } else if (process.argv.includes('--find-pending')) {
+        // 仅查找待审核项目
+        const accessToken = config.oauth2.accessToken || await getOAuth2Token();
+
+        const bot = new Mwn({
+            apiUrl: config.apiUrl,
+            userAgent: config.userAgent,
+            defaultParams: {
+                assert: 'user', // 强制要求登录状态
+                maxlag: 5 
+            }
+        });
+
+        const originalRequest = bot.request;
+        bot.request = async function(params) {
+            // 确保headers中的Authorization值只包含ASCII字符
+            if(this.requestOptions.headers && this.requestOptions.headers.Authorization) {
+                const authHeader = this.requestOptions.headers.Authorization;
+                const cleanAuthHeader = authHeader.split('').filter(char => 
+                    char.charCodeAt(0) <= 255
+                ).join('');
+                this.requestOptions.headers.Authorization = cleanAuthHeader;
+            }
+            return originalRequest.call(this, params);
+        };
+
+        bot.requestOptions.headers = {
+            ...bot.requestOptions.headers,
+            'Authorization': `Bearer ${accessToken}`
+        };
+
+        try {
+            console.log(pc.blue('[INFO] 验证登录状态并获取编辑令牌...'));
+            await bot.getTokens();
+            
+            const user = await bot.userinfo();
+            console.log(pc.green(`[INFO] 登录成功，当前身份: ${user.name}`));
+
+            await findPendingReviews(bot);
+        } catch (e) {
+            console.error(pc.red('[FATAL] 初始化失败或认证无效:'), e);
+            process.exit(1);
+        }
+    } else if (process.argv.includes('--update-pages')) {
+        // 从JSON文件更新页面
+        await finishReviewProcess();
+    } else {
+        // 默认行为：启动审核流程
+        await startReviewProcess();
+    }
+}
+
+/**
+ * 检查用户是否为"熟练编者"
  * 定义：在 2026-02-01 之前已完成 50 次编辑
  */
 async function checkVeteranStatus(bot, username) {
@@ -220,7 +372,7 @@ async function updateLeaderboard(bot, participants) {
                 }
 
                 // 生成一行：| 排名 || 贡献者 || 已提交条数 || 目前得分 || 贡献详情页
-                return `|-
+                return `|- 
 | ${index + 1} || ${userDisplay} || ${p.entryCount} || ${p.totalScore} || [[${p.pageTitle}|查看页面]]`;
             }).join('\n');
         };
@@ -239,7 +391,7 @@ async function updateLeaderboard(bot, participants) {
         content = replaceTableContent(content, '新星编者排行榜', newStarRows);
 
         // 写入更新后的排行榜
-        await bot.save(leaderboardTitle, content, '更新排行榜');
+        await bot.save(leaderboardTitle, content, 'bot: 更新排行榜数据 (2026春节编辑松)');
         console.log(pc.green('[SUCCESS] 总排行榜已更新。'));
 
     } catch (err) {
@@ -320,7 +472,7 @@ function replaceTableContent(fullText, sectionName, newRows) {
     // The sample shows:
     // {| ...
     // ! headers
-    // |-
+    // |- 
     // | content
     // |}
     // We want to keep headers. The headers usually end with the first `|-` that is NOT followed by `|` or `!` immediately on same line?
@@ -356,7 +508,7 @@ function replaceTableContent(fullText, sectionName, newRows) {
     const tableHead = tableContent.substring(0, splitPoint);
     const newTable = `${tableHead}${newRows}\n`; // existing part includes start of table up to first |- (exclusive? no |- is start of row)
     
-    // Wait, `splitPoint` is index of `|-`.
+    // Wait, [splitPoint](file://h:\Codes\2026SFE\bot.js#L351-L351) is index of `|-`.
     // If I take 0 to splitPoint, I get headers.
     // Then I add `newRows` (which should start with `|-`).
     // Then close with `|}`.
