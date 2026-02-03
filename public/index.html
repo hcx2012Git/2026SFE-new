@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>2026年春节编辑松 - 半自动审核工具</title>
+    <!-- 添加 Font Awesome 图标库 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         body {
             font-family: "Microsoft YaHei", Arial, sans-serif;
@@ -108,6 +110,25 @@
         
         .btn-finish-review:hover {
             background-color: #c82333;
+        }
+        
+        /* API按钮样式 */
+        .btn-api-load {
+            background-color: #9c27b0;
+            color: white;
+        }
+        
+        .btn-api-load:hover {
+            background-color: #7b1fa2;
+        }
+        
+        .btn-api-save {
+            background-color: #009688;
+            color: white;
+        }
+        
+        .btn-api-save:hover {
+            background-color: #00796b;
         }
         
         .results-section {
@@ -385,6 +406,107 @@
         .apply-score-btn:hover {
             background-color: #218838;
         }
+        
+        /* API状态指示器样式 */
+        .status-indicator {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 24px;
+            height: 24px;
+            margin-left: 10px;
+            vertical-align: middle;
+            border-radius: 50%;
+            font-size: 12px;
+        }
+        
+        .status-loading {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #3498db;
+            animation: spin 1s linear infinite;
+        }
+        
+        .status-success {
+            background-color: #4caf50;
+            color: white;
+        }
+        
+        .status-error {
+            background-color: #f44336;
+            color: white;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        /* API状态消息样式 */
+        .api-status {
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+            display: none;
+        }
+        
+        .api-status.success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+            display: block;
+        }
+        
+        .api-status.error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+            display: block;
+        }
+        
+        /* 工具提示样式 */
+        .tooltip {
+            position: relative;
+            display: inline-block;
+            cursor: pointer;
+        }
+        
+        .tooltip .tooltiptext {
+            visibility: hidden;
+            width: 200px;
+            background-color: #555;
+            color: #fff;
+            text-align: center;
+            border-radius: 6px;
+            padding: 5px;
+            position: absolute;
+            z-index: 1;
+            bottom: 125%;
+            left: 50%;
+            margin-left: -100px;
+            opacity: 0;
+            transition: opacity 0.3s;
+            font-size: 12px;
+        }
+        
+        .tooltip:hover .tooltiptext {
+            visibility: visible;
+            opacity: 1;
+        }
+        
+        /* API按钮组样式 */
+        .api-button-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        
+        .api-info {
+            font-size: 12px;
+            color: #666;
+            margin-left: 10px;
+        }
     </style>
 </head>
 <body>
@@ -396,56 +518,96 @@
             <ol>
                 <li><strong>方式一（手动）</strong>：在下方输入框粘贴Wikitext内容，点击"解析模板"</li>
                 <li><strong>方式二（自动）</strong>：运行 <code>node review.js</code>，程序将自动打开此页面</li>
+                <li><strong>方式三（API）</strong>：使用下方API按钮从服务器获取/保存数据</li>
                 <li>审核完成后，点击"完成审核并保存"按钮自动运行 <code>node review.js --finish-review</code></li>
             </ol>
+        </div>
+        
+        <!-- API操作区域 -->
+        <div class="input-section">
+            <h2>
+                API 数据操作 
+                <span class="tooltip">
+                    <i class="fas fa-info-circle" style="color: #007bff;"></i>
+                    <span class="tooltiptext">从服务器获取审核数据，或保存审核结果到服务器</span>
+                </span>
+            </h2>
+            <div class="api-button-group">
+                <button class="btn-api-load" onclick="loadFromAPI()">
+                    <i class="fas fa-download"></i> 从API获取数据
+                    <span id="apiLoadStatus" class="status-indicator"></span>
+                </button>
+                <button class="btn-api-save" onclick="saveToAPI()">
+                    <i class="fas fa-upload"></i> 保存数据到API
+                    <span id="apiSaveStatus" class="status-indicator"></span>
+                </button>
+                <span class="api-info">
+                    <i class="fas fa-server"></i> API端点: /api/list 和 /api/push
+                </span>
+            </div>
+            <div id="apiStatusMessage" class="api-status"></div>
         </div>
         
         <div class="input-section">
             <h2>输入 Wikitext 内容</h2>
             <textarea id="wikitextInput" placeholder="请粘贴包含 {{2026SFEditasonStatus|...|...}} 模板的 Wikitext 内容..."></textarea>
             <div class="button-group">
-                <button class="btn-parse" onclick="parseTemplates()">解析模板</button>
-                <button class="btn-load-pending" onclick="loadPendingData()">加载待审核数据</button>
-                <button class="btn-update-all" onclick="updateAllTemplates()">一键通过所有模板</button>
+                <button class="btn-parse" onclick="parseTemplates()">
+                    <i class="fas fa-code"></i> 解析模板
+                </button>
+                <button class="btn-load-pending" onclick="loadPendingData()">
+                    <i class="fas fa-file-import"></i> 加载待审核数据
+                </button>
+                <button class="btn-update-all" onclick="updateAllTemplates()">
+                    <i class="fas fa-check-double"></i> 一键通过所有模板
+                </button>
             </div>
             
             <div class="file-upload">
-                <label for="jsonDataFile">上传 pending_data.json 文件：</label>
+                <label for="jsonDataFile">
+                    <i class="fas fa-file-upload"></i> 上传 pending_data.json 文件：
+                </label>
                 <input type="file" id="jsonDataFile" accept=".json" onchange="handleJsonFileUpload(event)">
             </div>
         </div>
         
         <div class="auto-update-notice">
-            <strong>注意：</strong> 修改状态或分数后，系统会自动更新输出内容。
+            <strong><i class="fas fa-exclamation-circle"></i> 注意：</strong> 修改状态或分数后，系统会自动更新输出内容。
         </div>
         
         <div class="stats hidden" id="statsDiv">
-            <strong>统计信息:</strong>
+            <strong><i class="fas fa-chart-bar"></i> 统计信息:</strong>
             <span id="statsText"></span>
         </div>
         
         <div class="results-section hidden" id="resultsSection">
-            <h2>待审核模板列表</h2>
+            <h2><i class="fas fa-list"></i> 待审核模板列表</h2>
             <div id="templatesContainer"></div>
         </div>
         
         <div class="output-section hidden" id="outputSection">
-            <h2>更新后的 Wikitext 内容</h2>
+            <h2><i class="fas fa-file-code"></i> 更新后的 Wikitext 内容</h2>
             <textarea id="outputArea" readonly></textarea>
             <div class="button-group">
-                <button onclick="copyToClipboard()">复制到剪贴板</button>
-                <button class="btn-save-json" onclick="saveUpdateData()">保存更新数据 (JSON)</button>
+                <button onclick="copyToClipboard()">
+                    <i class="fas fa-copy"></i> 复制到剪贴板
+                </button>
+                <button class="btn-save-json" onclick="saveUpdateData()">
+                    <i class="fas fa-save"></i> 保存更新数据 (JSON)
+                </button>
             </div>
         </div>
         
         <div class="completion-message hidden" id="completionMessage">
-            <h3>审核完成！</h3>
+            <h3><i class="fas fa-check-circle"></i> 审核完成！</h3>
             <p>所有更改已保存，正在自动运行 review.js 完成页面更新...</p>
             <p>请稍等片刻查看结果。</p>
         </div>
         
         <div class="button-group">
-            <button class="btn-finish-review" onclick="finishReview()" id="finishReviewBtn">完成审核并保存</button>
+            <button class="btn-finish-review" onclick="finishReview()" id="finishReviewBtn">
+                <i class="fas fa-flag-checkered"></i> 完成审核并保存
+            </button>
         </div>
     </div>
 
@@ -453,11 +615,11 @@
     <div id="calculatorModal" class="modal">
         <div class="modal-content">
             <span class="close">&times;</span>
-            <h2>条目评分计算器</h2>
+            <h2><i class="fas fa-calculator"></i> 条目评分计算器</h2>
             <div class="calculator-container">
                 <div class="input-section">
                     <div class="input-group">
-                        <h3>条目类型</h3>
+                        <h3><i class="fas fa-tag"></i> 条目类型</h3>
                         <select id="entryType">
                             <option value="小作品">小作品（基础分: 0.5）</option>
                             <option value="DYK">DYK（基础分: 1）</option>
@@ -466,14 +628,14 @@
                     </div>
                     
                     <div class="input-group">
-                        <h3>条目字数</h3>
+                        <h3><i class="fas fa-font"></i> 条目字数</h3>
                         <input type="number" id="wordCount" min="0" step="1" placeholder="请输入字数">
-                        <h3>图片个数</h3>
+                        <h3><i class="fas fa-image"></i> 图片个数</h3>
                         <input type="number" id="imgCount" min="0" step="1" value="0" placeholder="请输入图片个数">
                     </div>
                     
                     <div class="input-group">
-                        <h3>乘数</h3>
+                        <h3><i class="fas fa-times-circle"></i> 乘数</h3>
                         
                         <div class="switch-group">
                             <input type="checkbox" id="newUser">
@@ -486,7 +648,7 @@
                         </div>
                         
                         <div style="margin-top: 15px;">
-                            <p style="margin-bottom: 10px; font-weight: 500;">特殊分类：</p>
+                            <p style="margin-bottom: 10px; font-weight: 500;"><i class="fas fa-star"></i> 特殊分类：</p>
                             <div class="checkbox-group">
                                 <div class="checkbox-item">
                                     <input type="checkbox" id="political" value="2">
@@ -510,11 +672,11 @@
                 </div>
                 
                 <button id="calculateBtn" class="calculator-btn">
-                    计算得分
+                    <i class="fas fa-calculator"></i> 计算得分
                 </button>
                 
                 <div class="result-section">
-                    <h3>计算结果</h3>
+                    <h3><i class="fas fa-chart-line"></i> 计算结果</h3>
                     <div class="result-display">
                         <div class="score-box">
                             <div class="score-label">最终得分</div>
@@ -526,7 +688,9 @@
                         </div>
                     </div>
                 </div>
-                <button id="applyScoreBtn" class="apply-score-btn">应用得分</button>
+                <button id="applyScoreBtn" class="apply-score-btn">
+                    <i class="fas fa-check"></i> 应用得分
+                </button>
             </div>
         </div>
     </div>
@@ -537,6 +701,184 @@
         let originalWikitext = '';
         let currentTemplateId = -1; // 记录当前操作的模板ID
         
+        // API状态管理
+        let apiLoadStatus = document.getElementById('apiLoadStatus');
+        let apiSaveStatus = document.getElementById('apiSaveStatus');
+        let apiStatusMessage = document.getElementById('apiStatusMessage');
+        
+        // 从API获取数据 - 根据新的API端点调整
+        async function loadFromAPI() {
+            try {
+                // 显示加载状态
+                apiLoadStatus.className = 'status-indicator status-loading';
+                apiStatusMessage.className = 'api-status';
+                apiStatusMessage.textContent = '正在从服务器获取数据...';
+                
+                // 调用API - 使用新的端点 /api/list
+                const response = await fetch('/api/list');
+                
+                if (!response.ok) {
+                    throw new Error(`API请求失败: ${response.status} ${response.statusText}`);
+                }
+                
+                const result = await response.json();
+                
+                // 检查响应码
+                if (result.code !== 200) {
+                    throw new Error(`API返回错误: ${result.code}`);
+                }
+                
+                // 解析数据 - data字段是JSON字符串
+                const data = JSON.parse(result.data);
+                
+                // 处理数据
+                templates = data.map((item, index) => ({
+                    ...item,
+                    id: index,
+                    newStatus: item.status, // 当前状态作为新状态的初始值
+                    newScore: item.score    // 当前分数作为新分数的初始值
+                }));
+                
+                // 显示成功状态
+                apiLoadStatus.className = 'status-indicator status-success';
+                apiLoadStatus.innerHTML = '<i class="fas fa-check"></i>';
+                apiStatusMessage.className = 'api-status success';
+                apiStatusMessage.innerHTML = `<i class="fas fa-check-circle"></i> 成功从API加载数据，共 ${templates.length} 个模板`;
+                
+                // 显示数据
+                displayTemplates();
+                updateStats();
+                
+                // 3秒后清除成功状态
+                setTimeout(() => {
+                    apiLoadStatus.className = 'status-indicator';
+                    apiLoadStatus.innerHTML = '';
+                }, 3000);
+                
+            } catch (error) {
+                console.error('从API加载数据失败:', error);
+                
+                // 显示错误状态
+                apiLoadStatus.className = 'status-indicator status-error';
+                apiLoadStatus.innerHTML = '<i class="fas fa-times"></i>';
+                apiStatusMessage.className = 'api-status error';
+                apiStatusMessage.innerHTML = `<i class="fas fa-exclamation-circle"></i> 从API加载数据失败: ${error.message}`;
+                
+                // 5秒后清除错误状态
+                setTimeout(() => {
+                    apiLoadStatus.className = 'status-indicator';
+                    apiLoadStatus.innerHTML = '';
+                }, 5000);
+            }
+        }
+        
+        // 保存数据到API - 根据新的API端点调整
+        // 保存数据到API - 根据新的API端点调整
+        async function saveToAPI() {
+            if (templates.length === 0) {
+                alert('没有数据可保存');
+                return;
+            }
+            
+            try {
+                // 显示加载状态
+                apiSaveStatus.className = 'status-indicator status-loading';
+                apiStatusMessage.className = 'api-status';
+                apiStatusMessage.textContent = '正在保存数据到服务器...';
+                
+                // 准备要保存的数据 - 按页面分组
+                const pagesToUpdate = {};
+                
+                templates.forEach(template => {
+                    // 获取页面标题
+                    const pageTitle = template.page || 'Unknown Page';
+                    
+                    if (!pagesToUpdate[pageTitle]) {
+                        pagesToUpdate[pageTitle] = {
+                            title: pageTitle,
+                            items: [],
+                            summary: '快速审核（2026年春节编辑松小工具）'
+                        };
+                    }
+                    
+                    // 添加项目到页面的更新列表，包含所有必要信息
+                    pagesToUpdate[pageTitle].items.push({
+                        originalTemplate: template.originalTemplate || template.original,
+                        newStatus: template.newStatus || template.status,
+                        newScore: template.newScore || template.score,
+                        newRemark: template.newRemark || template.remark,
+                        status: template.status,
+                        score: template.score,
+                        absolutePosition: template.absolutePosition,
+                        relativePosition: template.relativePosition,
+                        lineNumber: template.lineNumber,
+                        templateIndex: template.templateIndex,
+                        entryName: template.entryName,
+                        originalLine: template.originalLine
+                    });
+                });
+                
+                // 转换为数组格式
+                const finalUpdateData = Object.values(pagesToUpdate);
+                
+                // 调用API - 使用新的端点 /api/push
+                const response = await fetch('/api/push', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        content: JSON.stringify(finalUpdateData, null, 2)
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`API请求失败: ${response.status} ${response.statusText}`);
+                }
+                
+                const result = await response.json();
+                
+                // 检查响应码
+                if (result.code !== 200) {
+                    throw new Error(`API返回错误: ${result.code}`);
+                }
+                
+                // 显示成功状态
+                apiSaveStatus.className = 'status-indicator status-success';
+                apiSaveStatus.innerHTML = '<i class="fas fa-check"></i>';
+                apiStatusMessage.className = 'api-status success';
+                apiStatusMessage.innerHTML = `<i class="fas fa-check-circle"></i> 成功保存数据到API，共保存 ${templates.length} 个模板，${finalUpdateData.length} 个页面`;
+                
+                // 3秒后清除成功状态
+                setTimeout(() => {
+                    apiSaveStatus.className = 'status-indicator';
+                    apiSaveStatus.innerHTML = '';
+                }, 3000);
+                
+            } catch (error) {
+                console.error('保存数据到API失败:', error);
+                
+                // 显示错误状态
+                apiSaveStatus.className = 'status-indicator status-error';
+                apiSaveStatus.innerHTML = '<i class="fas fa-times"></i>';
+                apiStatusMessage.className = 'api-status error';
+                apiStatusMessage.innerHTML = `<i class="fas fa-exclamation-circle"></i> 保存数据到API失败: ${error.message}`;
+                
+                // 5秒后清除错误状态
+                setTimeout(() => {
+                    apiSaveStatus.className = 'status-indicator';
+                    apiSaveStatus.innerHTML = '';
+                }, 5000);
+            }
+        }
+        
+        // 模拟API响应的函数（用于测试，实际使用时需要注释掉）
+        // 注意：这只是模拟代码，实际使用时需要注释掉或删
+        
+        // 初始化时设置模拟API（仅用于测试，实际使用时请注释掉）
+        // setupMockAPI();
+        
+        // 原有函数保持不变...
         function parseTemplates() {
             const input = document.getElementById('wikitextInput').value;
             originalWikitext = input; // 保存原始wikitext
@@ -687,9 +1029,9 @@
             templates.forEach(template => {
                 const templateElement = document.createElement('div');
                 templateElement.className = 'template-item';
-                entry_name = template.entryName && template.entryName.startsWith('[[') && template.entryName.endsWith(']]')
-    ? `- 条目: <a href=\"https://www.qiuwenbaike.cn/wiki/${template.entryName.slice(2, -2)}\" target=\"_blank\">${template.entryName.slice(2, -2)}</a>, 页面: ${template.page || 'Unknown'}\n`
-    : `- 条目: ${template.entryName || 'Unknown'}, 页面: ${template.page || 'Unknown'}\n`;
+                const entry_name = template.entryName && template.entryName.startsWith('[[') && template.entryName.endsWith(']]')
+                    ? `- 条目: <a href="https://www.qiuwenbaike.cn/wiki/${template.entryName.slice(2, -2)}" target="_blank">${template.entryName.slice(2, -2)}</a>, 页面: ${template.page || 'Unknown'}\n`
+                    : `- 条目: ${template.entryName || 'Unknown'}, 页面: ${template.page || 'Unknown'}\n`;
                 templateElement.innerHTML = `
                     <div class="template-header">
                         <span>${entry_name}</span>

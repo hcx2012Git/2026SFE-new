@@ -54,6 +54,15 @@ node review.js --update-pages
 ```
 之后会自动保存修改。
 
+### 服务器模式
+
+运行（需要同意防火墙）
+```bash
+node website.js
+```
+
+访问http://localhos:2026/，即可。
+
 
 ## 许可协议
 
