@@ -16,7 +16,7 @@ function parseContributionPage(wikitext) {
     const cleanedWikitext = wikitext.replace(/<!--[\s\S]*?-->/g, '');
 
     // 先合并分为多行的表格行，再合并为一行
-    const mergedLines = cleanedWikitext.replace(/\\n\|(?!-)/g, '||').replace(/\n\|(?!-)/g, '||').split('\n').map(line => line.replace('|-|', ''));
+    const mergedLines = cleanedWikitext.replace(/\\n\|(?!-)/g, '||').replace(/\n\|(?!-)/g, '||').replaceAll('|-|', '|-\n').split('\n');
 
     // console.log('Merged Lines:', mergedLines);
 
@@ -79,7 +79,7 @@ function parseContributionPageWithDetails(wikitext) {
     const cleanedWikitext = wikitext.replace(/<!--[\s\S]*?-->/g, '');
 
     // 先合并分为多行的表格行，再合并为一行
-    const lines = cleanedWikitext.replace(/\\n\|(?!-)/g, '||').replace(/\n\|(?!-)/g, '||').split('\n').map(line => line.replace('|-|', ''));
+    const lines = cleanedWikitext.replace(/\\n\|(?!-)/g, '||').replace(/\n\|(?!-)/g, '||').replaceAll('|-|', '|-\n').split('\n');
     let inTable = false;
     let currentLineNumber = 0;
     
@@ -172,7 +172,7 @@ function parseContributionPageWithDetails(wikitext) {
  */
 function updatePageContentWithTemplates(originalWikitext, updatedItems) {
     // 按行分割文本，逐行处理
-    const lines = originalWikitext.split('\n');
+    const lines = originalWikitext.replace(/\\n\|(?!-)/g, '||').replace(/\n\|(?!-)/g, '||').replaceAll('|-|', '|-\n').split('\n');
     const processedLines = [...lines]; // 复制数组以避免修改原数组
 
     // 按行号分组更新项，确保同一条目的多个模板能被正确处理
@@ -189,10 +189,10 @@ function updatePageContentWithTemplates(originalWikitext, updatedItems) {
         const lineNum = parseInt(lineNumStr);
         if (lineNum < processedLines.length) {
             let currentLine = processedLines[lineNum];
-            
+
             // 按模板索引排序，确保替换顺序正确
             lineItems.sort((a, b) => (a.templateIndex || 0) - (b.templateIndex || 0));
-            
+
             // 遍历当前行的所有模板更新项，按顺序替换
             for (const item of lineItems) {
                 // 创建新的模板字符串
@@ -207,13 +207,13 @@ function updatePageContentWithTemplates(originalWikitext, updatedItems) {
                     // 检查原始模板后面是否已经有备注（包含<br/><small>或类似的HTML标签）
                     const originalTemplate = item.originalTemplate || `{{2026SFEditasonStatus|${item.status}${item.score ? `|${item.score}` : ''}}}`;
                     const pos = currentLine.indexOf(originalTemplate);
-                    
+
                     if (pos !== -1) {
                         // 检查原始模板之后是否已经有备注
                         const afterTemplate = currentLine.substring(pos + originalTemplate.length);
-                        const remarkPattern = /<br\s*\/?><\s*small\s*>(.*?)<\/\s*small\s*>/;
+                        const remarkPattern = /<br\s*\/?>\s*<small>(.*?)<\/small>/;
                         const match = afterTemplate.match(remarkPattern);
-                        
+
                         if (!match) {
                             // 如果没有现有备注，则添加新的备注
                             newTemplate += `<br/><small>（${item.newRemark}）</small>`;
@@ -235,7 +235,7 @@ function updatePageContentWithTemplates(originalWikitext, updatedItems) {
     }
 
     // 重新组合所有行
-    return processedLines.join('\n');
+    return processedLines.join('\n').replaceAll('||}','|}');
 }
 
 /**
