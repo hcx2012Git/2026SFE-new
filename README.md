@@ -61,7 +61,7 @@ node review.js --update-pages
 node website.js
 ```
 
-访问http://localhos:2026/，即可。
+访问http://localhost:2026/ ，即可。
 
 
 ## 许可协议
