@@ -41,27 +41,14 @@ node HYYY_bot.js
 ```bash
 node get_pending_list.js
 ```
-#### 审核工具
-先运行：
-```bash
-node review.js
-```
-生成pending_data.json后，打开[review.html](./review.html)并上传。在html下载后导出updated_pages.json。
 
-再运行：
-```bash
-node review.js --update-pages
-```
-之后会自动保存修改。
-
-### 服务器模式
-
+#### 审核工具（服务器模式）
 运行（需要同意防火墙）
 ```bash
 node website.js
 ```
 
-访问http://localhos:2026/，即可。
+访问http://localhost:2026/ ，即可。
 
 
 ## 许可协议

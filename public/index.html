@@ -671,8 +671,8 @@
                     </div>
                 </div>
                 
-                <button id="calculateBtn" class="calculator-btn">
-                    <i class="fas fa-calculator"></i> 计算得分
+                <button id="calculateAndApplyBtn" class="calculator-btn">
+                    计算并应用得分和备注
                 </button>
                 
                 <div class="result-section">
@@ -688,9 +688,6 @@
                         </div>
                     </div>
                 </div>
-                <button id="applyScoreBtn" class="apply-score-btn">
-                    <i class="fas fa-check"></i> 应用得分
-                </button>
             </div>
         </div>
     </div>
@@ -1061,7 +1058,6 @@
                         </div>
                         <button class="update-btn" onclick="updateSingleTemplate(${template.id})">更新此模板</button>
                         <button class="update-btn" onclick="openCalculator(${template.id})">打开计算器</button>
-                        <button class="update-btn" onclick="applySequentialOutput(${template.id})">应用计算器生成的备注</button>
                     </div>
                 `;
                 container.appendChild(templateElement);
@@ -1111,8 +1107,7 @@
             // 获取计算器相关元素
             const modal = document.getElementById('calculatorModal');
             const closeBtn = document.querySelector('.close');
-            const calculateBtn = document.getElementById('calculateBtn');
-            const applyScoreBtn = document.getElementById('applyScoreBtn');
+            const calculateAndApplyBtn = document.getElementById('calculateAndApplyBtn');
 
             // 关闭弹窗事件
             closeBtn.onclick = function() {
@@ -1143,7 +1138,35 @@
             calculateScore();
 
             // 监听所有输入变化
-            calculateBtn.addEventListener('click', calculateScore);
+            calculateAndApplyBtn.addEventListener('click', function() {
+                calculateScore();
+                // 计算后自动应用得分和备注
+                const currentTemplate = templates[currentTemplateId];
+                if (currentTemplate) {
+                    const sequentialOutput = document.getElementById('sequentialOutput').textContent;
+                    if (sequentialOutput && sequentialOutput !== '等待计算...') {
+                        currentTemplate.newScore = parseFloat(finalScore.textContent) || 0;
+                        currentTemplate.newRemark = sequentialOutput;
+
+                        // 更新界面上的分数和备注输入框
+                        const scoreInput = document.getElementById(`scoreInput${currentTemplateId}`);
+                        const remarkInput = document.getElementById(`remarkInput${currentTemplateId}`);
+                        if (scoreInput) {
+                            scoreInput.value = currentTemplate.newScore;
+                        }
+                        if (remarkInput) {
+                            remarkInput.value = currentTemplate.newRemark;
+                        }
+
+                        updateOutput();
+                        alert('得分和备注已应用到条目');
+                    } else {
+                        alert('请先计算并生成计算器结果再应用');
+                    }
+                } else {
+                    alert('没有选择要应用备注的条目');
+                }
+            });
             entryType.addEventListener('change', calculateScore);
             wordCount.addEventListener('input', calculateScore);
             imgCount.addEventListener('input', calculateScore);
@@ -1245,40 +1268,6 @@
                 // 更新顺序输出显示
                 sequentialOutput.textContent = outputArray.join("；");
             }
-
-            // 应用得分到当前条目的函数
-            applyScoreBtn.addEventListener('click', function() {
-                if(currentTemplateId !== -1) {
-                    const scoreValue = parseFloat(finalScore.textContent);
-                    if(!isNaN(scoreValue)) {
-                        // 更新模板数据
-                        templates[currentTemplateId].newScore = scoreValue;
-                        
-                        // 更新界面上的分数输入框
-                        const scoreInput = document.getElementById(`scoreInput${currentTemplateId}`);
-                        if(scoreInput) {
-                            scoreInput.value = scoreValue;
-                        }
-                        
-                        // 如果状态不是通过，将其改为通过状态
-                        const statusSelect = document.getElementById(`statusSelect${currentTemplateId}`);
-                        if(statusSelect && statusSelect.value !== 'pass') {
-                            statusSelect.value = 'pass';
-                            templates[currentTemplateId].newStatus = 'pass';
-                            
-                            // 启用分数输入框
-                            scoreInput.disabled = false;
-                        }
-                        
-                        updateOutput(); // 更新输出
-                        alert(`得分 ${scoreValue} 已应用到当前条目！`);
-                    } else {
-                        alert('请先计算得分再应用');
-                    }
-                } else {
-                    alert('没有选择要应用得分的条目');
-                }
-            });
         });
 
         function updateTemplate(templateId, newStatus) {
