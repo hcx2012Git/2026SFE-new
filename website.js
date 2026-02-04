@@ -581,7 +581,6 @@ app.get('/api/list',async (err,res)=>{
 })
 app.post('/api/push',async (req,res)=>{
     const inp=req.body['content'];
-    console.log(inp);
     await finishReviewProcess(inp);
     res.send({
         code:200
