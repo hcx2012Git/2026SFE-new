@@ -55,6 +55,8 @@ node website.js
 
 本项目采用 [MIT License](LICENSE) 开源许可协议。
 
+其中图标（即[favicon.ico](public/favicon.ico)）源自[求闻百科](https://www.qiuwenbaike.cn/wiki/File:%E2%80%9C%E6%B1%82%E2%80%9D%E7%BD%91%E7%AB%99%E5%9B%BE%E6%A0%87%EF%BC%88%E9%80%8F%E6%98%8E%E8%83%8C%E6%99%AF%EF%BC%9B2024%E7%89%88%EF%BC%9B%E7%BA%A2%E8%89%B2%E6%96%B9%E6%8B%AC%E5%8F%B7%EF%BC%89.svg)，署名求闻百科技术团队，采用[CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/deed.zh)授权
+
 ## 声明
 
 本仓库代码包含 GitHub Copilot、通义灵码 生成内容。
