@@ -172,7 +172,7 @@ function parseContributionPageWithDetails(wikitext) {
  */
 function updatePageContentWithTemplates(originalWikitext, updatedItems) {
     // 按行分割文本，逐行处理
-    const lines = originalWikitext.replace(/\\n\|(?!-)/g, '||').replace(/\n\|(?!-)/g, '||').replaceAll('|-|', '|-\n').replaceAll('||}','|}').split('\n');
+    const lines = originalWikitext.replace(/\\n\|(?!-)/g, '||').replace(/\n\|(?!-)/g, '||').replaceAll('|-|', '|-\n').replaceAll('||}','\n|}').split('\n');
     const processedLines = [...lines]; // 复制数组以避免修改原数组
 
     // 按行号分组更新项，确保同一条目的多个模板能被正确处理
